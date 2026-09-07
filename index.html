@@ -3,18 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>Jinja - Smart Marketplace</title>
+  <title>Jinja Marketplace</title>
 
   <style>
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: Arial, sans-serif;
     }
 
     body {
+      font-family: Arial, sans-serif;
       background: #f5f6f8;
       color: #222;
     }
@@ -32,6 +31,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      margin-bottom: 15px;
     }
 
     .logo {
@@ -40,70 +40,65 @@
     }
 
     .cart {
-      font-size: 24px;
-    }
-
-    .hero {
       background: #2563eb;
+      border: none;
       color: white;
-      padding: 30px 20px;
-      text-align: center;
-    }
-
-    .hero h1 {
-      font-size: 30px;
-      margin-bottom: 10px;
-    }
-
-    .hero p {
-      margin-bottom: 20px;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-weight: bold;
     }
 
     .search {
       width: 100%;
-      max-width: 600px;
-      padding: 15px;
+      padding: 13px;
       border: none;
-      border-radius: 10px;
+      border-radius: 8px;
       font-size: 16px;
-      outline: none;
     }
 
     .categories {
-      padding: 20px;
-    }
-
-    .categories h2 {
-      margin-bottom: 15px;
-    }
-
-    .category-list {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       overflow-x: auto;
+      padding: 15px;
+      background: white;
     }
 
     .category {
+      border: 1px solid #ddd;
       background: white;
-      padding: 12px 18px;
+      padding: 10px 15px;
       border-radius: 20px;
       white-space: nowrap;
-      border: 1px solid #ddd;
-      cursor: pointer;
+    }
+
+    .category.active {
+      background: #2563eb;
+      color: white;
+      border-color: #2563eb;
+    }
+
+    .container {
+      padding: 15px;
+      max-width: 1100px;
+      margin: auto;
+    }
+
+    .welcome {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 18px;
+    }
+
+    .welcome h1 {
+      margin-bottom: 8px;
     }
 
     .products {
-      padding: 20px;
-    }
-
-    .products h2 {
-      margin-bottom: 15px;
-    }
-
-    .product-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 15px;
+      gap: 12px;
     }
 
     .product {
@@ -114,25 +109,27 @@
     }
 
     .product-image {
+      width: 100%;
       height: 150px;
       background: #e5e7eb;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 50px;
+      font-size: 55px;
     }
 
     .product-info {
       padding: 12px;
     }
 
-    .product-name {
-      font-weight: bold;
-      margin-bottom: 6px;
+    .product h3 {
+      font-size: 16px;
+      margin-bottom: 7px;
     }
 
     .price {
-      color: #2563eb;
+      color: #16a34a;
+      font-size: 18px;
       font-weight: bold;
       margin-bottom: 6px;
     }
@@ -143,38 +140,105 @@
       margin-bottom: 10px;
     }
 
-    .seller {
+    .source {
+      font-size: 12px;
       color: #555;
-      font-size: 13px;
       margin-bottom: 10px;
     }
 
-    .buy-btn {
-      width: 100%;
-      background: #2563eb;
-      color: white;
+    .buttons {
+      display: flex;
+      gap: 6px;
+    }
+
+    .buttons button {
+      flex: 1;
+      padding: 9px;
       border: none;
-      padding: 10px;
       border-radius: 7px;
-      cursor: pointer;
       font-weight: bold;
     }
 
-    .buy-btn:hover {
-      background: #1d4ed8;
+    .add {
+      background: #111827;
+      color: white;
+    }
+
+    .order {
+      background: #2563eb;
+      color: white;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 40px;
+      color: #777;
+      grid-column: 1 / -1;
+    }
+
+    .cart-box {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 20;
+    }
+
+    .cart-content {
+      background: white;
+      width: 90%;
+      max-width: 450px;
+      margin: 70px auto;
+      padding: 20px;
+      border-radius: 15px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .cart-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+    }
+
+    .close {
+      border: none;
+      background: #eee;
+      padding: 7px 12px;
+      border-radius: 6px;
+    }
+
+    .cart-item {
+      padding: 12px 0;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .total {
+      font-size: 20px;
+      font-weight: bold;
+      margin: 18px 0;
+    }
+
+    .checkout {
+      width: 100%;
+      padding: 13px;
+      background: #16a34a;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 16px;
     }
 
     footer {
-      background: #111827;
-      color: white;
       text-align: center;
-      padding: 25px;
-      margin-top: 30px;
+      padding: 30px 15px;
+      color: #777;
     }
 
     @media (min-width: 700px) {
-      .product-grid {
-        grid-template-columns: repeat(4, 1fr);
+      .products {
+        grid-template-columns: repeat(3, 1fr);
       }
     }
   </style>
@@ -182,149 +246,232 @@
 
 <body>
 
-  <header>
-    <div class="top">
-      <div class="logo">Jinja</div>
-      <div class="cart">🛒</div>
-    </div>
-  </header>
+<header>
+  <div class="top">
+    <div class="logo">Jinja</div>
+    <button class="cart" onclick="openCart()">
+      🛒 Cart (<span id="cartCount">0</span>)
+    </button>
+  </div>
 
-  <section class="hero">
+  <input
+    type="text"
+    class="search"
+    id="search"
+    placeholder="Search phones, laptops, accessories..."
+    oninput="displayProducts()"
+  >
+</header>
+
+<div class="categories">
+  <button class="category active" onclick="setCategory('All', this)">All</button>
+  <button class="category" onclick="setCategory('Phones', this)">📱 Phones</button>
+  <button class="category" onclick="setCategory('Laptops', this)">💻 Laptops</button>
+  <button class="category" onclick="setCategory('Accessories', this)">🔌 Accessories</button>
+</div>
+
+<main class="container">
+
+  <div class="welcome">
     <h1>Welcome to Jinja</h1>
-    <p>Find phones, laptops and electrical accessories from trusted sellers.</p>
+    <p>Find phones, laptops and electrical accessories from different sellers and locations.</p>
+  </div>
 
-    <input
-      type="text"
-      id="search"
-      class="search"
-      placeholder="Search for phones, laptops, accessories..."
-      onkeyup="searchProducts()"
-    >
-  </section>
+  <div class="products" id="products"></div>
 
-  <section class="categories">
-    <h2>Categories</h2>
+</main>
 
-    <div class="category-list">
-      <div class="category">📱 Phones</div>
-      <div class="category">💻 Laptops</div>
-      <div class="category">🎧 Accessories</div>
-      <div class="category">⚡ Electrical</div>
+<div class="cart-box" id="cartBox">
+  <div class="cart-content">
+
+    <div class="cart-header">
+      <h2>Your Cart</h2>
+      <button class="close" onclick="closeCart()">✕</button>
     </div>
-  </section>
 
-  <section class="products">
+    <div id="cartItems"></div>
 
-    <h2>Featured Products</h2>
-
-    <div class="product-grid" id="productGrid">
-
-      <div class="product">
-        <div class="product-image">📱</div>
-
-        <div class="product-info">
-          <div class="product-name">iPhone</div>
-          <div class="price">₦450,000</div>
-          <div class="location">📍 Lagos, Nigeria</div>
-          <div class="seller">Seller: Jinja Phones</div>
-
-          <button class="buy-btn" onclick="buyProduct('iPhone')">
-            View Product
-          </button>
-        </div>
-      </div>
-
-
-      <div class="product">
-        <div class="product-image">📱</div>
-
-        <div class="product-info">
-          <div class="product-name">Samsung Galaxy</div>
-          <div class="price">₦380,000</div>
-          <div class="location">📍 Abuja, Nigeria</div>
-          <div class="seller">Seller: Galaxy Store</div>
-
-          <button class="buy-btn" onclick="buyProduct('Samsung Galaxy')">
-            View Product
-          </button>
-        </div>
-      </div>
-
-
-      <div class="product">
-        <div class="product-image">💻</div>
-
-        <div class="product-info">
-          <div class="product-name">HP Laptop</div>
-          <div class="price">₦550,000</div>
-          <div class="location">📍 Port Harcourt, Nigeria</div>
-          <div class="seller">Seller: HP Nigeria Store</div>
-
-          <button class="buy-btn" onclick="buyProduct('HP Laptop')">
-            View Product
-          </button>
-        </div>
-      </div>
-
-
-      <div class="product">
-        <div class="product-image">🎧</div>
-
-        <div class="product-info">
-          <div class="product-name">Wireless Earbuds</div>
-          <div class="price">₦35,000</div>
-          <div class="location">📍 Kano, Nigeria</div>
-          <div class="seller">Seller: Jinja Accessories</div>
-
-          <button class="buy-btn" onclick="buyProduct('Wireless Earbuds')">
-            View Product
-          </button>
-        </div>
-      </div>
-
+    <div class="total">
+      Total: ₦<span id="cartTotal">0</span>
     </div>
-  </section>
 
-  <footer>
-    <p>© 2026 Jinja</p>
-    <p>Smart shopping made simple.</p>
-  </footer>
+    <button class="checkout" onclick="checkout()">
+      Proceed to Order
+    </button>
 
+  </div>
+</div>
 
-  <script>
+<footer>
+  <p>© 2026 Jinja Marketplace</p>
+  <p>Connecting buyers with sellers.</p>
+</footer>
 
-    function buyProduct(productName) {
-      alert("You selected: " + productName);
-    }
+<script>
 
-    function searchProducts() {
+const products = [
 
-      let input = document
-        .getElementById("search")
-        .value
-        .toLowerCase();
+  {
+    name: "iPhone 15",
+    category: "Phones",
+    price: 850000,
+    location: "Lagos, Nigeria",
+    source: "Phone Dealer",
+    icon: "📱"
+  },
 
-      let products = document
-        .getElementById("productGrid")
-        .children;
+  {
+    name: "Samsung Galaxy S24",
+    category: "Phones",
+    price: 780000,
+    location: "Abuja, Nigeria",
+    source: "Samsung Dealer",
+    icon: "📱"
+  },
 
-      for (let i = 0; i < products.length; i++) {
+  {
+    name: "Tecno Camon 30",
+    category: "Phones",
+    price: 250000,
+    location: "Port Harcourt, Nigeria",
+    source: "Tecno Dealer",
+    icon: "📱"
+  },
 
-        let name = products[i]
-          .querySelector(".product-name")
-          .textContent
-          .toLowerCase();
+  {
+    name: "HP Laptop",
+    category: "Laptops",
+    price: 450000,
+    location: "Lagos, Nigeria",
+    source: "Laptop Dealer",
+    icon: "💻"
+  },
 
-        if (name.includes(input)) {
-          products[i].style.display = "block";
-        } else {
-          products[i].style.display = "none";
-        }
+  {
+    name: "Dell Latitude",
+    category: "Laptops",
+    price: 520000,
+    location: "Abuja, Nigeria",
+    source: "Dell Dealer",
+    icon: "💻"
+  },
 
-      }
-    }
+  {
+    name: "MacBook Air",
+    category: "Laptops",
+    price: 1200000,
+    location: "Lagos, Nigeria",
+    source: "Apple Dealer",
+    icon: "💻"
+  },
 
-  </script>
+  {
+    name: "Wireless Earbuds",
+    category: "Accessories",
+    price: 25000,
+    location: "Lagos, Nigeria",
+    source: "Accessories Dealer",
+    icon: "🎧"
+  },
 
-</body>
-  </html>
+  {
+    name: "Phone Charger",
+    category: "Accessories",
+    price: 12000,
+    location: "Ibadan, Nigeria",
+    source: "Accessories Dealer",
+    icon: "🔌"
+  },
+
+  {
+    name: "Power Bank",
+    category: "Accessories",
+    price: 35000,
+    location: "Lagos, Nigeria",
+    source: "Accessories Dealer",
+    icon: "🔋"
+  }
+
+];
+
+let selectedCategory = "All";
+let cart = [];
+
+function formatPrice(price) {
+  return price.toLocaleString("en-NG");
+}
+
+function displayProducts() {
+
+  const container = document.getElementById("products");
+  const search = document.getElementById("search").value.toLowerCase();
+
+  const filtered = products.filter(product => {
+
+    const categoryMatch =
+      selectedCategory === "All" ||
+      product.category === selectedCategory;
+
+    const searchMatch =
+      product.name.toLowerCase().includes(search) ||
+      product.location.toLowerCase().includes(search) ||
+      product.source.toLowerCase().includes(search);
+
+    return categoryMatch && searchMatch;
+  });
+
+  container.innerHTML = "";
+
+  if (filtered.length === 0) {
+    container.innerHTML =
+      '<div class="empty">No products found.</div>';
+    return;
+  }
+
+  filtered.forEach((product, index) => {
+
+    container.innerHTML += `
+
+      <div class="product">
+
+        <div class="product-image">
+          ${product.icon}
+        </div>
+
+        <div class="product-info">
+
+          <h3>${product.name}</h3>
+
+          <div class="price">
+            ₦${formatPrice(product.price)}
+          </div>
+
+          <div class="location">
+            📍 ${product.location}
+          </div>
+
+          <div class="source">
+            🏪 ${product.source}
+          </div>
+
+          <div class="buttons">
+
+            <button
+              class="add"
+              onclick="addToCart(${products.indexOf(product)})">
+              Add
+            </button>
+
+            <button
+              class="order"
+              onclick="orderProduct(${products.indexOf(product)})">
+              Order
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+    `;
+ 
