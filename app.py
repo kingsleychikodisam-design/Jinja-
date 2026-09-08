@@ -1,5 +1,6 @@
-from flask import Flask, send_from_directory, request, render_template_string, redirect, url_for
+from flask import Flask, send_from_directory, request, render_template_string, redirect, url_for, jsonify
 import os
+import time
 
 app = Flask(__name__)
 
@@ -28,6 +29,8 @@ sample_orders = [
 ]
 
 
+# ---------------- HOME ----------------
+
 @app.route("/")
 def home():
     return send_from_directory(".", "index.html")
@@ -42,7 +45,9 @@ def admin():
 
 @app.route("/vendor/register", methods=["GET", "POST"])
 def vendor_register():
+
     if request.method == "POST":
+
         name = request.form.get("name")
         email = request.form.get("email")
         phone = request.form.get("phone")
@@ -69,12 +74,14 @@ def vendor_register():
     <html>
     <head>
         <title>Jinja Vendor Registration</title>
+
         <style>
             body {
                 font-family: Arial;
                 background: #f5f5f5;
                 padding: 30px;
             }
+
             .box {
                 max-width: 450px;
                 margin: auto;
@@ -82,12 +89,14 @@ def vendor_register():
                 padding: 25px;
                 border-radius: 12px;
             }
+
             input {
                 width: 100%;
                 padding: 12px;
                 margin: 8px 0;
                 box-sizing: border-box;
             }
+
             button {
                 width: 100%;
                 padding: 12px;
@@ -98,19 +107,51 @@ def vendor_register():
             }
         </style>
     </head>
+
     <body>
+
         <div class="box">
+
             <h2>Become a Jinja Vendor</h2>
 
             <form method="POST">
-                <input type="text" name="name" placeholder="Business Name" required>
-                <input type="email" name="email" placeholder="Email" required>
-                <input type="text" name="phone" placeholder="Phone Number" required>
-                <input type="password" name="password" placeholder="Password" required>
 
-                <button type="submit">Register</button>
+                <input
+                    type="text"
+                    name="name"
+                    placeholder="Business Name"
+                    required
+                >
+
+                <input
+                    type="email"
+                    name="email"
+                    placeholder="Email"
+                    required
+                >
+
+                <input
+                    type="text"
+                    name="phone"
+                    placeholder="Phone Number"
+                    required
+                >
+
+                <input
+                    type="password"
+                    name="password"
+                    placeholder="Password"
+                    required
+                >
+
+                <button type="submit">
+                    Register
+                </button>
+
             </form>
+
         </div>
+
     </body>
     </html>
     """)
@@ -120,6 +161,7 @@ def vendor_register():
 
 @app.route("/vendor/dashboard")
 def vendor_dashboard():
+
     name = request.args.get("name", "Vendor")
     email = request.args.get("email", "")
     phone = request.args.get("phone", "")
@@ -127,32 +169,39 @@ def vendor_dashboard():
     return render_template_string("""
     <!DOCTYPE html>
     <html>
+
     <head>
         <title>Vendor Dashboard</title>
+
         <style>
             body {
                 font-family: Arial;
                 background: #f5f5f5;
                 padding: 20px;
             }
+
             .header {
                 background: black;
                 color: white;
                 padding: 20px;
                 border-radius: 10px;
             }
+
             .cards {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                grid-template-columns:
+                    repeat(auto-fit, minmax(200px, 1fr));
                 gap: 20px;
                 margin-top: 25px;
             }
+
             .card {
                 background: white;
                 padding: 25px;
                 border-radius: 12px;
                 text-align: center;
             }
+
             a {
                 display: inline-block;
                 padding: 12px 20px;
@@ -167,30 +216,51 @@ def vendor_dashboard():
     <body>
 
         <div class="header">
+
             <h1>Jinja Vendor Dashboard</h1>
+
             <p>Welcome, {{ name }}</p>
             <p>{{ email }}</p>
             <p>{{ phone }}</p>
+
         </div>
 
         <div class="cards">
 
             <div class="card">
+
                 <h2>📦 Add Product</h2>
+
                 <p>Add a new product to Jinja.</p>
-                <a href="/vendor/add-product">Add Product</a>
+
+                <a href="/vendor/add-product">
+                    Add Product
+                </a>
+
             </div>
 
             <div class="card">
+
                 <h2>🛍️ My Products</h2>
+
                 <p>View your products.</p>
-                <a href="/vendor/products">My Products</a>
+
+                <a href="/vendor/products">
+                    My Products
+                </a>
+
             </div>
 
             <div class="card">
+
                 <h2>📋 Customer Orders</h2>
+
                 <p>View and manage customer orders.</p>
-                <a href="/vendor/orders">Customer Orders</a>
+
+                <a href="/vendor/orders">
+                    Customer Orders
+                </a>
+
             </div>
 
         </div>
@@ -222,8 +292,10 @@ def add_product():
     return render_template_string("""
     <!DOCTYPE html>
     <html>
+
     <head>
         <title>Add Product</title>
+
         <style>
             body {
                 font-family: Arial;
@@ -280,10 +352,23 @@ def add_product():
                 >
 
                 <select name="category" required>
-                    <option value="">Select Category</option>
-                    <option value="Phones">Phones</option>
-                    <option value="Laptops">Laptops</option>
-                    <option value="Accessories">Accessories</option>
+
+                    <option value="">
+                        Select Category
+                    </option>
+
+                    <option value="Phones">
+                        Phones
+                    </option>
+
+                    <option value="Laptops">
+                        Laptops
+                    </option>
+
+                    <option value="Accessories">
+                        Accessories
+                    </option>
+
                 </select>
 
                 <textarea
@@ -298,7 +383,9 @@ def add_product():
                     placeholder="Product Image URL"
                 >
 
-                <button type="submit">Save Product</button>
+                <button type="submit">
+                    Save Product
+                </button>
 
             </form>
 
@@ -317,6 +404,7 @@ def vendor_products():
     return render_template_string("""
     <!DOCTYPE html>
     <html>
+
     <head>
         <title>My Products</title>
 
@@ -349,6 +437,7 @@ def vendor_products():
                 border-radius: 6px;
             }
         </style>
+
     </head>
 
     <body>
@@ -367,11 +456,19 @@ def vendor_products():
 
                 <h2>{{ product.name }}</h2>
 
-                <p><strong>Price:</strong> {{ product.price }}</p>
+                <p>
+                    <strong>Price:</strong>
+                    {{ product.price }}
+                </p>
 
-                <p><strong>Category:</strong> {{ product.category }}</p>
+                <p>
+                    <strong>Category:</strong>
+                    {{ product.category }}
+                </p>
 
-                <p>{{ product.description }}</p>
+                <p>
+                    {{ product.description }}
+                </p>
 
             </div>
 
@@ -379,15 +476,145 @@ def vendor_products():
 
         {% else %}
 
-            <p>You have not added any products yet.</p>
+            <p>
+                You have not added any products yet.
+            </p>
 
         {% endif %}
 
-        <a href="/vendor/dashboard">Back to Dashboard</a>
+        <a href="/vendor/dashboard">
+            Back to Dashboard
+        </a>
 
     </body>
     </html>
     """, products=products)
+
+
+# ---------------- CREATE REAL CUSTOMER ORDER ----------------
+
+@app.route("/api/orders", methods=["POST"])
+def create_order():
+
+    data = request.get_json()
+
+    if not data:
+        return jsonify({
+            "success": False,
+            "message": "No order data received"
+        }), 400
+
+    customer_name = data.get("name")
+    phone = data.get("phone")
+    address = data.get("address")
+    state = data.get("state")
+    payment = data.get("payment")
+    items = data.get("items", [])
+
+    if not customer_name or not phone or not address or not state:
+        return jsonify({
+            "success": False,
+            "message": "Please provide all customer details"
+        }), 400
+
+    if not items:
+        return jsonify({
+            "success": False,
+            "message": "Your cart is empty"
+        }), 400
+
+    order_id = "JINJA-" + str(int(time.time()))[-7:]
+
+    total = 0
+    product_names = []
+
+    for item in items:
+
+        product_id = item.get("id")
+        quantity = int(item.get("qty", 1))
+
+        product = next(
+            (p for p in products if p.get("id") == product_id),
+            None
+        )
+
+        # Match the current marketplace products
+        if product:
+            try:
+                price = float(product.get("price", 0))
+                total += price * quantity
+                product_names.append(product.get("name"))
+            except:
+                pass
+
+    if total == 0:
+
+        # Support the current homepage products
+        homepage_prices = {
+            1: 850000,
+            2: 780000,
+            3: 310000,
+            4: 275000,
+            5: 690000,
+            6: 720000,
+            7: 45000,
+            8: 18000,
+            9: 35000,
+            10: 12000,
+            11: 455000,
+            12: 1450000
+        }
+
+        homepage_names = {
+            1: "iPhone 15 128GB",
+            2: "Samsung Galaxy S24",
+            3: "Tecno Camon Series",
+            4: "Infinix Note Series",
+            5: "HP Core i5 Laptop",
+            6: "Lenovo ThinkPad",
+            7: "AirPods Style Earbuds",
+            8: "65W Fast Charger",
+            9: "Power Bank 20,000mAh",
+            10: "Phone Protective Case",
+            11: "Samsung A55",
+            12: "MacBook Air"
+        }
+
+        for item in items:
+
+            product_id = item.get("id")
+            quantity = int(item.get("qty", 1))
+
+            if product_id in homepage_prices:
+
+                total += homepage_prices[product_id] * quantity
+
+                product_names.append(
+                    homepage_names.get(
+                        product_id,
+                        "Product"
+                    )
+                )
+
+    order = {
+        "order_id": order_id,
+        "product": ", ".join(product_names),
+        "customer": customer_name,
+        "phone": phone,
+        "address": address + ", " + state,
+        "amount": "₦" + format(int(total), ","),
+        "status": "Pending",
+        "payment": payment,
+        "items": items
+    }
+
+    sample_orders.append(order)
+
+    return jsonify({
+        "success": True,
+        "message": "Order created successfully",
+        "order": order
+    })
 
 
 # ---------------- CUSTOMER ORDERS ----------------
@@ -458,17 +685,34 @@ def vendor_orders():
 
         <div class="order">
 
-            <h2>Order {{ order.order_id }}</h2>
+            <h2>
+                Order {{ order.order_id }}
+            </h2>
 
-            <p><strong>Product:</strong> {{ order.product }}</p>
+            <p>
+                <strong>Product:</strong>
+                {{ order.product }}
+            </p>
 
-            <p><strong>Customer:</strong> {{ order.customer }}</p>
+            <p>
+                <strong>Customer:</strong>
+                {{ order.customer }}
+            </p>
 
-            <p><strong>Phone:</strong> {{ order.phone }}</p>
+            <p>
+                <strong>Phone:</strong>
+                {{ order.phone }}
+            </p>
 
-            <p><strong>Address:</strong> {{ order.address }}</p>
+            <p>
+                <strong>Address:</strong>
+                {{ order.address }}
+            </p>
 
-            <p><strong>Amount:</strong> {{ order.amount }}</p>
+            <p>
+                <strong>Amount:</strong>
+                {{ order.amount }}
+            </p>
 
             <p class="status">
                 Current Status: {{ order.status }}
@@ -482,22 +726,30 @@ def vendor_orders():
                 <select name="status">
 
                     <option value="Pending"
-                        {% if order.status == "Pending" %}selected{% endif %}>
+                        {% if order.status == "Pending" %}
+                        selected
+                        {% endif %}>
                         Pending
                     </option>
 
                     <option value="Confirmed"
-                        {% if order.status == "Confirmed" %}selected{% endif %}>
+                        {% if order.status == "Confirmed" %}
+                        selected
+                        {% endif %}>
                         Confirmed
                     </option>
 
                     <option value="Shipped"
-                        {% if order.status == "Shipped" %}selected{% endif %}>
+                        {% if order.status == "Shipped" %}
+                        selected
+                        {% endif %}>
                         Shipped
                     </option>
 
                     <option value="Delivered"
-                        {% if order.status == "Delivered" %}selected{% endif %}>
+                        {% if order.status == "Delivered" %}
+                        selected
+                        {% endif %}>
                         Delivered
                     </option>
 
@@ -518,14 +770,16 @@ def vendor_orders():
         </a>
 
     </body>
-
     </html>
     """, orders=sample_orders)
 
 
 # ---------------- UPDATE ORDER STATUS ----------------
 
-@app.route("/vendor/orders/update/<order_id>", methods=["POST"])
+@app.route(
+    "/vendor/orders/update/<order_id>",
+    methods=["POST"]
+)
 def update_order(order_id):
 
     new_status = request.form.get("status")
@@ -554,7 +808,8 @@ def update_order(order_id):
 # ---------------- START APP ----------------
 
 if __name__ == "__main__":
+
     app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 10000))
-)
+    )
