@@ -74,7 +74,6 @@ def vendor_register():
     <html>
     <head>
         <title>Jinja Vendor Registration</title>
-
         <style>
             body {
                 font-family: Arial;
@@ -116,33 +115,17 @@ def vendor_register():
 
             <form method="POST">
 
-                <input
-                    type="text"
-                    name="name"
-                    placeholder="Business Name"
-                    required
-                >
+                <input type="text" name="name"
+                    placeholder="Business Name" required>
 
-                <input
-                    type="email"
-                    name="email"
-                    placeholder="Email"
-                    required
-                >
+                <input type="email" name="email"
+                    placeholder="Email" required>
 
-                <input
-                    type="text"
-                    name="phone"
-                    placeholder="Phone Number"
-                    required
-                >
+                <input type="text" name="phone"
+                    placeholder="Phone Number" required>
 
-                <input
-                    type="password"
-                    name="password"
-                    placeholder="Password"
-                    required
-                >
+                <input type="password" name="password"
+                    placeholder="Password" required>
 
                 <button type="submit">
                     Register
@@ -337,51 +320,27 @@ def add_product():
 
             <form method="POST">
 
-                <input
-                    type="text"
-                    name="name"
-                    placeholder="Product Name"
-                    required
-                >
+                <input type="text" name="name"
+                    placeholder="Product Name" required>
 
-                <input
-                    type="text"
-                    name="price"
-                    placeholder="Price"
-                    required
-                >
+                <input type="text" name="price"
+                    placeholder="Price" required>
 
                 <select name="category" required>
 
-                    <option value="">
-                        Select Category
-                    </option>
-
-                    <option value="Phones">
-                        Phones
-                    </option>
-
-                    <option value="Laptops">
-                        Laptops
-                    </option>
-
-                    <option value="Accessories">
-                        Accessories
-                    </option>
+                    <option value="">Select Category</option>
+                    <option value="Phones">Phones</option>
+                    <option value="Laptops">Laptops</option>
+                    <option value="Accessories">Accessories</option>
 
                 </select>
 
-                <textarea
-                    name="description"
+                <textarea name="description"
                     placeholder="Product Description"
-                    rows="5"
-                ></textarea>
+                    rows="5"></textarea>
 
-                <input
-                    type="text"
-                    name="image"
-                    placeholder="Product Image URL"
-                >
+                <input type="text" name="image"
+                    placeholder="Product Image URL">
 
                 <button type="submit">
                     Save Product
@@ -476,9 +435,7 @@ def vendor_products():
 
         {% else %}
 
-            <p>
-                You have not added any products yet.
-            </p>
+            <p>You have not added any products yet.</p>
 
         {% endif %}
 
@@ -491,7 +448,7 @@ def vendor_products():
     """, products=products)
 
 
-# ---------------- CREATE REAL CUSTOMER ORDER ----------------
+# ---------------- CREATE CUSTOMER ORDER ----------------
 
 @app.route("/api/orders", methods=["POST"])
 def create_order():
@@ -525,6 +482,36 @@ def create_order():
 
     order_id = "JINJA-" + str(int(time.time()))[-7:]
 
+    homepage_prices = {
+        1: 850000,
+        2: 780000,
+        3: 310000,
+        4: 275000,
+        5: 690000,
+        6: 720000,
+        7: 45000,
+        8: 18000,
+        9: 35000,
+        10: 12000,
+        11: 455000,
+        12: 1450000
+    }
+
+    homepage_names = {
+        1: "iPhone 15 128GB",
+        2: "Samsung Galaxy S24",
+        3: "Tecno Camon Series",
+        4: "Infinix Note Series",
+        5: "HP Core i5 Laptop",
+        6: "Lenovo ThinkPad",
+        7: "AirPods Style Earbuds",
+        8: "65W Fast Charger",
+        9: "Power Bank 20,000mAh",
+        10: "Phone Protective Case",
+        11: "Samsung A55",
+        12: "MacBook Air"
+    }
+
     total = 0
     product_names = []
 
@@ -533,68 +520,11 @@ def create_order():
         product_id = item.get("id")
         quantity = int(item.get("qty", 1))
 
-        product = next(
-            (p for p in products if p.get("id") == product_id),
-            None
+        total += homepage_prices.get(product_id, 0) * quantity
+
+        product_names.append(
+            homepage_names.get(product_id, "Product")
         )
-
-        # Match the current marketplace products
-        if product:
-            try:
-                price = float(product.get("price", 0))
-                total += price * quantity
-                product_names.append(product.get("name"))
-            except:
-                pass
-
-    if total == 0:
-
-        # Support the current homepage products
-        homepage_prices = {
-            1: 850000,
-            2: 780000,
-            3: 310000,
-            4: 275000,
-            5: 690000,
-            6: 720000,
-            7: 45000,
-            8: 18000,
-            9: 35000,
-            10: 12000,
-            11: 455000,
-            12: 1450000
-        }
-
-        homepage_names = {
-            1: "iPhone 15 128GB",
-            2: "Samsung Galaxy S24",
-            3: "Tecno Camon Series",
-            4: "Infinix Note Series",
-            5: "HP Core i5 Laptop",
-            6: "Lenovo ThinkPad",
-            7: "AirPods Style Earbuds",
-            8: "65W Fast Charger",
-            9: "Power Bank 20,000mAh",
-            10: "Phone Protective Case",
-            11: "Samsung A55",
-            12: "MacBook Air"
-        }
-
-        for item in items:
-
-            product_id = item.get("id")
-            quantity = int(item.get("qty", 1))
-
-            if product_id in homepage_prices:
-
-                total += homepage_prices[product_id] * quantity
-
-                product_names.append(
-                    homepage_names.get(
-                        product_id,
-                        "Product"
-                    )
-                )
 
     order = {
         "order_id": order_id,
@@ -617,9 +547,29 @@ def create_order():
     })
 
 
-# ---------------- CUSTOMER ORDERS ----------------
+# ---------------- TRACK CUSTOMER ORDER ----------------
 
-@app.route("/vendor/orders")
+@app.route("/api/orders/<order_id>", methods=["GET"])
+def get_order(order_id):
+
+    for order in sample_orders:
+
+        if order["order_id"] == order_id:
+
+            return jsonify({
+                "success": True,
+                "order": order
+            })
+
+    return jsonify({
+        "success": False,
+        "message": "Order not found"
+    }), 404
+
+
+# ---------------- VENDOR ORDERS ----------------
+
+@app.route("/vendor/orders", methods=["GET"])
 def vendor_orders():
 
     return render_template_string("""
@@ -641,22 +591,16 @@ def vendor_orders():
             .order {
                 background: white;
                 padding: 20px;
-                margin-bottom: 20px;
-                border-radius: 12px;
+                margin-bottom: 15px;
+                border-radius: 10px;
             }
 
-            .status {
-                font-weight: bold;
-                margin: 10px 0;
-            }
-
-            select {
+            select, button {
                 padding: 10px;
-                margin-right: 5px;
+                margin-top: 8px;
             }
 
             button {
-                padding: 10px 15px;
                 background: black;
                 color: white;
                 border: none;
@@ -679,97 +623,95 @@ def vendor_orders():
 
     <body>
 
-        <h1>Customer Orders</h1>
+        <h1>📋 Customer Orders</h1>
 
-        {% for order in orders %}
+        {% if orders %}
 
-        <div class="order">
+            {% for order in orders %}
 
-            <h2>
-                Order {{ order.order_id }}
-            </h2>
+            <div class="order">
 
-            <p>
-                <strong>Product:</strong>
-                {{ order.product }}
-            </p>
+                <h2>{{ order.order_id }}</h2>
 
-            <p>
-                <strong>Customer:</strong>
-                {{ order.customer }}
-            </p>
+                <p>
+                    <strong>Product:</strong>
+                    {{ order.product }}
+                </p>
 
-            <p>
-                <strong>Phone:</strong>
-                {{ order.phone }}
-            </p>
+                <p>
+                    <strong>Customer:</strong>
+                    {{ order.customer }}
+                </p>
 
-            <p>
-                <strong>Address:</strong>
-                {{ order.address }}
-            </p>
+                <p>
+                    <strong>Phone:</strong>
+                    {{ order.phone }}
+                </p>
 
-            <p>
-                <strong>Amount:</strong>
-                {{ order.amount }}
-            </p>
+                <p>
+                    <strong>Address:</strong>
+                    {{ order.address }}
+                </p>
 
-            <p class="status">
-                Current Status: {{ order.status }}
-            </p>
+                <p>
+                    <strong>Amount:</strong>
+                    {{ order.amount }}
+                </p>
 
-            <form
-                method="POST"
-                action="/vendor/orders/update/{{ order.order_id }}"
-            >
+                <p>
+                    <strong>Status:</strong>
+                    {{ order.status }}
+                </p>
 
-                <select name="status">
+                <form method="POST"
+                    action="/vendor/orders/update/{{ order.order_id }}">
 
-                    <option value="Pending"
-                        {% if order.status == "Pending" %}
-                        selected
-                        {% endif %}>
-                        Pending
-                    </option>
+                    <select name="status">
 
-                    <option value="Confirmed"
-                        {% if order.status == "Confirmed" %}
-                        selected
-                        {% endif %}>
-                        Confirmed
-                    </option>
+                        <option value="Pending"
+                            {% if order.status == "Pending" %}selected{% endif %}>
+                            Pending
+                        </option>
 
-                    <option value="Shipped"
-                        {% if order.status == "Shipped" %}
-                        selected
-                        {% endif %}>
-                        Shipped
-                    </option>
+                        <option value="Confirmed"
+                            {% if order.status == "Confirmed" %}selected{% endif %}>
+                            Confirmed
+                        </option>
 
-                    <option value="Delivered"
-                        {% if order.status == "Delivered" %}
-                        selected
-                        {% endif %}>
-                        Delivered
-                    </option>
+                        <option value="Shipped"
+                            {% if order.status == "Shipped" %}selected{% endif %}>
+                            Shipped
+                        </option>
 
-                </select>
+                        <option value="Delivered"
+                            {% if order.status == "Delivered" %}selected{% endif %}>
+                            Delivered
+                        </option>
 
-                <button type="submit">
-                    Update Order
-                </button>
+                    </select>
 
-            </form>
+                    <button type="submit">
+                        Update Order
+                    </button>
 
-        </div>
+                </form>
 
-        {% endfor %}
+            </div>
+
+            {% endfor %}
+
+        {% else %}
+
+            <p>No customer orders yet.</p>
+
+        {% endif %}
 
         <a href="/vendor/dashboard">
             Back to Dashboard
         </a>
 
     </body>
+
     </html>
     """, orders=sample_orders)
 
@@ -812,4 +754,4 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 10000))
-    )
+)
