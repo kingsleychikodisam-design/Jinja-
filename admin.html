@@ -703,7 +703,59 @@ document.getElementById("search")
 // START
 updateDashboard();
 displayProducts();
+// ADD PRODUCT SYSTEM
+function addProduct() {
+  const name = prompt("Product name:");
+  if (!name) return;
 
+  const category = prompt("Category (Phones, Laptops, Accessories):");
+  if (!category) return;
+
+  const price = prompt("Product price in Naira:");
+  if (!price || isNaN(price)) {
+    alert("Please enter a valid price.");
+    return;
+  }
+
+  const vendor = prompt("Company/Vendor name:");
+  if (!vendor) return;
+
+  const location = prompt("Vendor location:");
+  if (!location) return;
+
+  const icon = prompt("Product icon/emoji (example: 📱):") || "📦";
+
+  let adminProducts = JSON.parse(
+    localStorage.getItem("jinjaAdminProducts") || "[]"
+  );
+
+  const product = {
+    id: Date.now(),
+    name: name,
+    category: category,
+    price: Number(price),
+    vendor: vendor,
+    location: location,
+    icon: icon
+  };
+
+  adminProducts.push(product);
+
+  localStorage.setItem(
+    "jinjaAdminProducts",
+    JSON.stringify(adminProducts)
+  );
+
+  alert("Product added successfully!");
+
+  if (typeof displayProducts === "function") {
+    displayProducts();
+  }
+
+  if (typeof updateDashboard === "function") {
+    updateDashboard();
+  }
+  }
 </script>
 
 </body>
