@@ -3,8 +3,9 @@ import os
 
 app = Flask(__name__)
 
-# Temporary vendor storage for testing
+# Temporary storage for testing
 vendors = []
+products = []
 
 
 @app.route("/")
@@ -17,36 +18,37 @@ def admin():
     return send_from_directory(".", "admin.html")
 
 
+# =========================
+# VENDOR REGISTRATION
+# =========================
+
 @app.route("/vendor/register", methods=["GET", "POST"])
 def vendor_register():
-    message = ""
 
     if request.method == "POST":
+
         name = request.form.get("name")
         email = request.form.get("email")
         phone = request.form.get("phone")
         password = request.form.get("password")
 
         if not name or not email or not phone or not password:
-            message = "Please fill in all fields."
-        else:
-            vendor = {
-                "name": name,
-                "email": email,
-                "phone": phone
-            }
+            return "Please fill in all fields."
 
-            vendors.append(vendor)
+        vendors.append({
+            "name": name,
+            "email": email,
+            "phone": phone
+        })
 
-            # Send the vendor to the dashboard
-            return redirect(
-                url_for(
-                    "vendor_dashboard",
-                    name=name,
-                    email=email,
-                    phone=phone
-                )
+        return redirect(
+            url_for(
+                "vendor_dashboard",
+                name=name,
+                email=email,
+                phone=phone
             )
+        )
 
     return render_template_string("""
     <!DOCTYPE html>
@@ -57,22 +59,17 @@ def vendor_register():
 
         <style>
             body {
-                font-family: Arial, sans-serif;
+                font-family: Arial;
                 background: #f5f5f5;
                 padding: 20px;
             }
 
-            .container {
+            .box {
                 max-width: 450px;
                 margin: 40px auto;
                 background: white;
                 padding: 25px;
                 border-radius: 12px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            }
-
-            h1 {
-                text-align: center;
             }
 
             input {
@@ -80,8 +77,6 @@ def vendor_register():
                 padding: 12px;
                 margin: 8px 0 15px;
                 box-sizing: border-box;
-                border: 1px solid #ccc;
-                border-radius: 6px;
             }
 
             button {
@@ -91,64 +86,29 @@ def vendor_register():
                 color: white;
                 border: none;
                 border-radius: 6px;
-                font-size: 16px;
-            }
-
-            .error {
-                color: red;
-                text-align: center;
-            }
-
-            a {
-                display: block;
-                text-align: center;
-                margin-top: 20px;
             }
         </style>
     </head>
 
     <body>
-        <div class="container">
+
+        <div class="box">
 
             <h1>🏪 Jinja Vendor Registration</h1>
-
-            {% if message %}
-                <div class="error">{{ message }}</div>
-            {% endif %}
 
             <form method="POST">
 
                 <label>Business/Vendor Name</label>
-                <input
-                    type="text"
-                    name="name"
-                    placeholder="Enter business name"
-                    required
-                >
+                <input type="text" name="name" required>
 
                 <label>Email</label>
-                <input
-                    type="email"
-                    name="email"
-                    placeholder="Enter email"
-                    required
-                >
+                <input type="email" name="email" required>
 
                 <label>Phone Number</label>
-                <input
-                    type="tel"
-                    name="phone"
-                    placeholder="Enter phone number"
-                    required
-                >
+                <input type="tel" name="phone" required>
 
                 <label>Password</label>
-                <input
-                    type="password"
-                    name="password"
-                    placeholder="Create password"
-                    required
-                >
+                <input type="password" name="password" required>
 
                 <button type="submit">
                     Register as Vendor
@@ -156,13 +116,20 @@ def vendor_register():
 
             </form>
 
-            <a href="/">← Back to Jinja Marketplace</a>
+            <br>
+
+            <a href="/">← Back to Jinja</a>
 
         </div>
+
     </body>
     </html>
     """)
 
+
+# =========================
+# VENDOR DASHBOARD
+# =========================
 
 @app.route("/vendor/dashboard")
 def vendor_dashboard():
@@ -174,7 +141,9 @@ def vendor_dashboard():
     return render_template_string("""
     <!DOCTYPE html>
     <html>
+
     <head>
+
         <title>Jinja Vendor Dashboard</title>
 
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -182,7 +151,7 @@ def vendor_dashboard():
         <style>
 
             body {
-                font-family: Arial, sans-serif;
+                font-family: Arial;
                 margin: 0;
                 background: #f5f5f5;
             }
@@ -208,7 +177,8 @@ def vendor_dashboard():
 
             .cards {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                grid-template-columns:
+                repeat(auto-fit, minmax(180px, 1fr));
                 gap: 15px;
             }
 
@@ -217,28 +187,23 @@ def vendor_dashboard():
                 padding: 25px;
                 border-radius: 12px;
                 text-align: center;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            }
-
-            .card h2 {
-                margin-top: 0;
             }
 
             button {
                 padding: 12px 18px;
-                border: none;
-                border-radius: 6px;
                 background: #111;
                 color: white;
-                font-size: 15px;
+                border: none;
+                border-radius: 6px;
             }
 
             a {
-                color: white;
                 text-decoration: none;
+                color: inherit;
             }
 
         </style>
+
     </head>
 
     <body>
@@ -257,47 +222,374 @@ def vendor_dashboard():
 
                 <p><strong>Phone:</strong> {{ phone }}</p>
 
-                <p>Your vendor account has been created successfully.</p>
-
             </div>
 
             <div class="cards">
 
                 <div class="card">
+
                     <h2>➕</h2>
+
                     <h3>Add Product</h3>
-                    <p>Add your products to Jinja.</p>
-                    <button>Add Product</button>
+
+                    <p>Add a product to Jinja.</p>
+
+                    <a href="/vendor/add-product">
+                        <button>Add Product</button>
+                    </a>
+
                 </div>
 
-                <div class="card">
-                    <h2>📦</h2>
-                    <h3>Orders</h3>
-                    <p>Manage your customer orders.</p>
-                    <button>Manage Orders</button>
-                </div>
 
                 <div class="card">
+
                     <h2>🛍️</h2>
+
                     <h3>My Products</h3>
+
                     <p>View your products.</p>
-                    <button>View Products</button>
+
+                    <a href="/vendor/products">
+                        <button>View Products</button>
+                    </a>
+
+                </div>
+
+
+                <div class="card">
+
+                    <h2>📦</h2>
+
+                    <h3>Orders</h3>
+
+                    <p>Manage customer orders.</p>
+
+                    <button>Manage Orders</button>
+
                 </div>
 
             </div>
 
             <br>
 
-            <a href="/" style="color:#111;">← Back to Jinja Marketplace</a>
+            <a href="/">← Back to Jinja Marketplace</a>
 
         </div>
 
     </body>
+
     </html>
     """)
 
 
+# =========================
+# ADD PRODUCT
+# =========================
+
+@app.route("/vendor/add-product", methods=["GET", "POST"])
+def add_product():
+
+    if request.method == "POST":
+
+        name = request.form.get("name")
+        price = request.form.get("price")
+        category = request.form.get("category")
+        description = request.form.get("description")
+        image = request.form.get("image")
+
+        if not name or not price or not category:
+            return "Please fill in the required fields."
+
+        products.append({
+            "name": name,
+            "price": price,
+            "category": category,
+            "description": description,
+            "image": image
+        })
+
+        return redirect("/vendor/products")
+
+    return render_template_string("""
+    <!DOCTYPE html>
+    <html>
+
+    <head>
+
+        <title>Add Product - Jinja</title>
+
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <style>
+
+            body {
+                font-family: Arial;
+                background: #f5f5f5;
+                padding: 20px;
+            }
+
+            .box {
+                max-width: 500px;
+                margin: 30px auto;
+                background: white;
+                padding: 25px;
+                border-radius: 12px;
+            }
+
+            input, textarea, select {
+
+                width: 100%;
+                padding: 12px;
+                margin: 8px 0 15px;
+
+                box-sizing: border-box;
+
+                border: 1px solid #ccc;
+                border-radius: 6px;
+            }
+
+            textarea {
+                height: 100px;
+            }
+
+            button {
+
+                width: 100%;
+                padding: 13px;
+
+                background: #111;
+                color: white;
+
+                border: none;
+                border-radius: 6px;
+
+                font-size: 16px;
+            }
+
+        </style>
+
+    </head>
+
+    <body>
+
+        <div class="box">
+
+            <h1>➕ Add Product</h1>
+
+            <form method="POST">
+
+                <label>Product Name *</label>
+
+                <input
+                    type="text"
+                    name="name"
+                    placeholder="e.g. iPhone 15"
+                    required
+                >
+
+
+                <label>Price (₦) *</label>
+
+                <input
+                    type="number"
+                    name="price"
+                    placeholder="850000"
+                    required
+                >
+
+
+                <label>Category *</label>
+
+                <select name="category" required>
+
+                    <option value="">
+                        Select category
+                    </option>
+
+                    <option value="Phones">
+                        Phones
+                    </option>
+
+                    <option value="Laptops">
+                        Laptops
+                    </option>
+
+                    <option value="Accessories">
+                        Accessories
+                    </option>
+
+                </select>
+
+
+                <label>Description</label>
+
+                <textarea
+                    name="description"
+                    placeholder="Describe your product..."
+                ></textarea>
+
+
+                <label>Product Image URL</label>
+
+                <input
+                    type="url"
+                    name="image"
+                    placeholder="https://example.com/image.jpg"
+                >
+
+
+                <button type="submit">
+                    💾 Save Product
+                </button>
+
+            </form>
+
+            <br>
+
+            <a href="/vendor/dashboard">
+                ← Back to Dashboard
+            </a>
+
+        </div>
+
+    </body>
+
+    </html>
+    """)
+
+
+# =========================
+# MY PRODUCTS
+# =========================
+
+@app.route("/vendor/products")
+def vendor_products():
+
+    return render_template_string("""
+    <!DOCTYPE html>
+    <html>
+
+    <head>
+
+        <title>My Products - Jinja</title>
+
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <style>
+
+            body {
+                font-family: Arial;
+                background: #f5f5f5;
+                padding: 20px;
+            }
+
+            .container {
+                max-width: 900px;
+                margin: auto;
+            }
+
+            .product {
+
+                background: white;
+                padding: 20px;
+
+                margin-bottom: 15px;
+
+                border-radius: 12px;
+            }
+
+            img {
+
+                width: 150px;
+                height: 150px;
+
+                object-fit: cover;
+
+                border-radius: 8px;
+            }
+
+            .price {
+
+                font-size: 20px;
+                font-weight: bold;
+            }
+
+        </style>
+
+    </head>
+
+    <body>
+
+        <div class="container">
+
+            <h1>🛍️ My Products</h1>
+
+            {% if products %}
+
+                {% for product in products %}
+
+                    <div class="product">
+
+                        {% if product.image %}
+
+                            <img src="{{ product.image }}">
+
+                        {% endif %}
+
+                        <h2>{{ product.name }}</h2>
+
+                        <div class="price">
+                            ₦{{ product.price }}
+                        </div>
+
+                        <p>
+                            <strong>
+                                {{ product.category }}
+                            </strong>
+                        </p>
+
+                        <p>
+                            {{ product.description }}
+                        </p>
+
+                    </div>
+
+                {% endfor %}
+
+            {% else %}
+
+                <p>
+                    You haven't added any products yet.
+                </p>
+
+            {% endif %}
+
+            <br>
+
+            <a href="/vendor/add-product">
+                ➕ Add Another Product
+            </a>
+
+            <br><br>
+
+            <a href="/vendor/dashboard">
+                ← Back to Dashboard
+            </a>
+
+        </div>
+
+    </body>
+
+    </html>
+    """, products=products)
+
+
+# =========================
+# START SERVER
+# =========================
+
 if __name__ == "__main__":
+
     app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 10000))
