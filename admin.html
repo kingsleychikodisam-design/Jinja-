@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jinja Admin Dashboard</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f6f8;
+      color: #222;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      padding: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      font-size: 22px;
+    }
+
+    .admin-label {
+      font-size: 13px;
+      color: #a7f3d0;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 20px auto;
+      padding: 15px;
+    }
+
+    .welcome {
+      margin-bottom: 20px;
+    }
+
+    .welcome h2 {
+      margin-bottom: 6px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 25px;
+    }
+
+    .stat {
+      background: white;
+      padding: 18px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 25px;
+      margin-top: 5px;
+    }
+
+    .panel {
+      background: white;
+      padding: 20px;
+      border-radius: 14px;
+      margin-bottom: 25px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+
+    .panel h2 {
+      margin-bottom: 15px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
+    label {
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .add-btn {
+      background: #16a34a;
+      color: white;
+      margin-top: 15px;
+    }
+
+    .approve-btn {
+      background: #16a34a;
+      color: white;
+    }
+
+    .reject-btn {
+      background: #dc2626;
+      color: white;
+    }
+
+    .delete-btn {
+      background: #374151;
+      color: white;
+    }
+
+    .products {
+      display: grid;
+      gap: 12px;
+    }
+
+    .product {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .product-info h3 {
+      margin-bottom: 6px;
+    }
+
+    .product-info p {
+      color: #666;
+      font-size: 14px;
+      margin: 3px 0;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 5px 9px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-top: 6px;
+    }
+
+    .pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .approved {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .rejected {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .actions {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 25px;
+      color: #777;
+    }
+
+    @media (max-width: 650px) {
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .product {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .actions button {
+        flex: 1;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div>
+    <h1>Jinja Admin</h1>
+    <div class="admin-label">Marketplace Control Panel</div>
+  </div>
+  <div>🛡️ Admin</div>
+</header>
+
+<main>
+
+  <div class="welcome">
+    <h2>Welcome, Jinja Admin 👋</h2>
+    <p>Manage products and approve what appears on the marketplace.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      Total Products
+      <strong id="totalProducts">0</strong>
+    </div>
+
+    <div class="stat">
+      Pending
+      <strong id="pendingProducts">0</strong>
+    </div>
+
+    <div class="stat">
+      Approved
+      <strong id="approvedProducts">0</strong>
+    </div>
+  </div>
+
+  <section class="panel">
+    <h2>➕ Add Product</h2>
+
+    <div class="form-grid">
+
+      <div>
+        <label>Product Name</label>
+        <input id="productName" type="text" placeholder="Example: iPhone 15">
+      </div>
+
+      <div>
+        <label>Price (₦)</label>
+        <input id="productPrice" type="number" placeholder="850000">
+      </div>
+
+      <div>
+        <label>Category</label>
+        <select id="productCategory">
+          <option value="Phones">Phones</option>
+          <option value="Laptops">Laptops</option>
+          <option value="Accessories">Accessories</option>
+          <option value="Electronics">Electronics</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Company / Vendor</label>
+        <input id="productVendor" type="text" placeholder="Company name">
+      </div>
+
+      <div>
+        <label>Location</label>
+        <input id="productLocation" type="text" placeholder="Lagos">
+      </div>
+
+      <div>
+        <label>Product Image URL</label>
+        <input id="productImage" type="text" placeholder="Image URL">
+      </div>
+
+      <div class="full">
+        <label>Product Description</label>
+        <input id="productDescription" type="text" placeholder="Describe the product">
+      </div>
+
+    </div>
+
+    <button class="add-btn" onclick="addProduct()">Add Product</button>
+  </section>
+
+  <section class="panel">
+    <h2>📦 Product Management</h2>
+    <div id="products" class="products"></div>
+  </section>
+
+</main>
+
+<script>
+
+let adminProducts =
+  JSON.parse(localStorage.getItem("jinjaAdminProducts")) || [];
+
+function saveProducts() {
+  localStorage.setItem(
+    "jinjaAdminProducts",
+    JSON.stringify(adminProducts)
+  );
+}
+
+function addProduct() {
+
+  const name = document.getElementById("productName").value.trim();
+  const price = Number(document.getElementById("productPrice").value);
+  const category = document.getElementById("productCategory").value;
+  const vendor = document.getElementById("productVendor").value.trim();
+  const location = document.getElementById("productLocation").value.trim();
+  const image = document.getElementById("productImage").value.trim();
+  const description = document.getElementById("productDescription").value.trim();
+
+  if (!name || !price || !vendor || !location) {
+    alert("Please fill in the product name, price, company/vendor and location.");
+    return;
+  }
+
+  const product = {
+    id: Date.now(),
+    name: name,
+    price: price,
+    category: category,
+    vendor: vendor,
+    location: location,
+    image: image,
+    description: description,
+    status: "Pending",
+    created: new Date().toISOString()
+  };
+
+  adminProducts.push(product);
+
+  saveProducts();
+
+  document.getElementById("productName").value = "";
+  document.getElementById("productPrice").value = "";
+  document.getElementById("productVendor").value = "";
+  document.getElementById("productLocation").value = "";
+  document.getElementById("productImage").value = "";
+  document.getElementById("productDescription").value = "";
+
+  renderProducts();
+
+  alert("Product added and sent for approval.");
+}
+
+function approveProduct(id) {
+
+  const product = adminProducts.find(p => p.id === id);
+
+  if (!product) return;
+
+  product.status = "Approved";
+
+  saveProducts();
+  renderProducts();
+
+  alert("Product approved.");
+}
+
+function rejectProduct(id) {
+
+  const product = adminProducts.find(p => p.id === id);
+
+  if (!product) return;
+
+  product.status = "Rejected";
+
+  saveProducts();
+  renderProducts();
+
+  alert("Product rejected.");
+}
+
+function deleteProduct(id) {
+
+  if (!confirm("Delete this product?")) return;
+
+  adminProducts =
+    adminProducts.filter(p => p.id !== id);
+
+  saveProducts();
+  renderProducts();
+}
+
+function money(value) {
+
+  return "₦" + Number(value).toLocaleString("en-NG");
+}
+
+function renderProducts() {
+
+  const box = document.getElementById("products");
+
+  document.getElementById("totalProducts").textContent =
+    adminProducts.length;
+
+  document.getElementById("pendingProducts").textContent =
+    adminProducts.filter(p => p.status === "Pending").length;
+
+  document.getElementById("approvedProducts").textContent =
+    adminProducts.filter(p => p.status === "Approved").length;
+
+  if (!adminProducts.length) {
+
+    box.innerHTML =
+      '<div class="empty">No products have been added yet.</div>';
+
+    return;
+  }
+
+  box.innerHTML = adminProducts.map(p => `
+
+    <div class="product">
+
+      <div class="product-info">
+
+        <h3>${p.name}</h3>
+
+        <p>💰 ${money(p.price)}</p>
+
+        <p>🏢 ${p.vendor}</p>
+
+        <p>📍 ${p.location}</p>
+
+        <p>📂 ${p.category}</p>
+
+        <span class="status ${p.status.toLowerCase()}">
+          ${p.status}
+        </span>
+
+      </div>
+
+      <div class="actions">
+
+        ${
+          p.status !== "Approved"
+          ? `<button class="approve-btn"
+              onclick="approveProduct(${p.id})">
+              Approve
+            </button>`
+          : ""
+        }
+
+        ${
+          p.status !== "Rejected"
+          ? `<button class="reject-btn"
+              onclick="rejectProduct(${p.id})">
+              Reject
+            </button>`
+          : ""
+        }
+
+        <button class="delete-btn"
+          onclick="deleteProduct(${p.id})">
+          Delete
+        </button>
+
+      </div>
+
+    </div>
+
+  `).join("");
+}
+
+renderProducts();
+
+</script>
+
+</body>
+  </html>
