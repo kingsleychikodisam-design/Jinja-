@@ -1,289 +1,82 @@
-from flask import Flask, send_from_directory, request, render_template_string, redirect, url_for, jsonify
-import os
-import time
+from flask import Flask, request, redirect, url_for, render_template_string, jsonify
 
 app = Flask(__name__)
 
-vendors = []
-products = []
-
-sample_orders = [
+# -----------------------------
+# ORDERS
+# -----------------------------
+orders = [
     {
-        "order_id": "JINJA-1001",
-        "product": "iPhone 15 128GB",
-        "customer": "John",
-        "phone": "08012345678",
-        "address": "Lagos",
-        "amount": "₦850,000",
+        "order_id": "JINJA-8893429",
+        "customer": "Kingsley Samuel",
+        "product": "Tecno Camon Series",
+        "amount": 310000,
+        "payment": "Pay on delivery",
         "status": "Pending"
-    },
-    {
-        "order_id": "JINJA-1002",
-        "product": "HP Core i5 Laptop",
-        "customer": "David",
-        "phone": "08123456789",
-        "address": "Abuja",
-        "amount": "₦690,000",
-        "status": "Shipped"
     }
 ]
 
+# -----------------------------
+# STATUS ORDER
+# -----------------------------
+STATUS_STEPS = [
+    "Pending",
+    "Confirmed",
+    "Shipped",
+    "Delivered"
+]
 
-# ---------------- HOME ----------------
 
+# -----------------------------
+# HOME PAGE
+# -----------------------------
 @app.route("/")
 def home():
-    return send_from_directory(".", "index.html")
+    return """
+    <h1>JINJA Marketplace</h1>
+
+    <p>Welcome to Jinja.</p>
+
+    <a href="/track/JINJA-8893429">
+        <button>Track your order</button>
+    </a>
+
+    <br><br>
+
+    <a href="/admin">
+        <button>Admin Order Management</button>
+    </a>
+    """
 
 
-@app.route("/admin")
-def admin():
-    return send_from_directory(".", "admin.html")
+# -----------------------------
+# TRACK ORDER
+# -----------------------------
+@app.route("/track/<order_id>")
+def track_order(order_id):
 
+    order = next(
+        (o for o in orders if o["order_id"] == order_id),
+        None
+    )
 
-# ---------------- VENDOR REGISTRATION ----------------
-
-@app.route("/vendor/register", methods=["GET", "POST"])
-def vendor_register():
-
-    if request.method == "POST":
-
-        name = request.form.get("name")
-        email = request.form.get("email")
-        phone = request.form.get("phone")
-        password = request.form.get("password")
-
-        vendors.append({
-            "name": name,
-            "email": email,
-            "phone": phone,
-            "password": password
-        })
-
-        return redirect(
-            url_for(
-                "vendor_dashboard",
-                name=name,
-                email=email,
-                phone=phone
-            )
-        )
+    if not order:
+        return """
+        <h2>Order not found</h2>
+        <a href="/">Back to marketplace</a>
+        """, 404
 
     return render_template_string("""
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Jinja Vendor Registration</title>
-        <style>
-            body {
-                font-family: Arial;
-                background: #f5f5f5;
-                padding: 30px;
-            }
-
-            .box {
-                max-width: 450px;
-                margin: auto;
-                background: white;
-                padding: 25px;
-                border-radius: 12px;
-            }
-
-            input {
-                width: 100%;
-                padding: 12px;
-                margin: 8px 0;
-                box-sizing: border-box;
-            }
-
-            button {
-                width: 100%;
-                padding: 12px;
-                background: black;
-                color: white;
-                border: none;
-                border-radius: 6px;
-            }
-        </style>
-    </head>
-
-    <body>
-
-        <div class="box">
-
-            <h2>Become a Jinja Vendor</h2>
-
-            <form method="POST">
-
-                <input type="text" name="name"
-                    placeholder="Business Name" required>
-
-                <input type="email" name="email"
-                    placeholder="Email" required>
-
-                <input type="text" name="phone"
-                    placeholder="Phone Number" required>
-
-                <input type="password" name="password"
-                    placeholder="Password" required>
-
-                <button type="submit">
-                    Register
-                </button>
-
-            </form>
-
-        </div>
-
-    </body>
-    </html>
-    """)
-
-
-# ---------------- VENDOR DASHBOARD ----------------
-
-@app.route("/vendor/dashboard")
-def vendor_dashboard():
-
-    name = request.args.get("name", "Vendor")
-    email = request.args.get("email", "")
-    phone = request.args.get("phone", "")
-
-    return render_template_string("""
-    <!DOCTYPE html>
-    <html>
-
-    <head>
-        <title>Vendor Dashboard</title>
+        <title>Track your order</title>
 
         <style>
             body {
-                font-family: Arial;
+                font-family: Arial, sans-serif;
                 background: #f5f5f5;
                 padding: 20px;
-            }
-
-            .header {
-                background: black;
-                color: white;
-                padding: 20px;
-                border-radius: 10px;
-            }
-
-            .cards {
-                display: grid;
-                grid-template-columns:
-                    repeat(auto-fit, minmax(200px, 1fr));
-                gap: 20px;
-                margin-top: 25px;
-            }
-
-            .card {
-                background: white;
-                padding: 25px;
-                border-radius: 12px;
-                text-align: center;
-            }
-
-            a {
-                display: inline-block;
-                padding: 12px 20px;
-                background: black;
-                color: white;
-                text-decoration: none;
-                border-radius: 6px;
-            }
-        </style>
-    </head>
-
-    <body>
-
-        <div class="header">
-
-            <h1>Jinja Vendor Dashboard</h1>
-
-            <p>Welcome, {{ name }}</p>
-            <p>{{ email }}</p>
-            <p>{{ phone }}</p>
-
-        </div>
-
-        <div class="cards">
-
-            <div class="card">
-
-                <h2>📦 Add Product</h2>
-
-                <p>Add a new product to Jinja.</p>
-
-                <a href="/vendor/add-product">
-                    Add Product
-                </a>
-
-            </div>
-
-            <div class="card">
-
-                <h2>🛍️ My Products</h2>
-
-                <p>View your products.</p>
-
-                <a href="/vendor/products">
-                    My Products
-                </a>
-
-            </div>
-
-            <div class="card">
-
-                <h2>📋 Customer Orders</h2>
-
-                <p>View and manage customer orders.</p>
-
-                <a href="/vendor/orders">
-                    Customer Orders
-                </a>
-
-            </div>
-
-        </div>
-
-    </body>
-    </html>
-    """, name=name, email=email, phone=phone)
-
-
-# ---------------- ADD PRODUCT ----------------
-
-@app.route("/vendor/add-product", methods=["GET", "POST"])
-def add_product():
-
-    if request.method == "POST":
-
-        product = {
-            "name": request.form.get("name"),
-            "price": request.form.get("price"),
-            "category": request.form.get("category"),
-            "description": request.form.get("description"),
-            "image": request.form.get("image")
-        }
-
-        products.append(product)
-
-        return redirect(url_for("vendor_products"))
-
-    return render_template_string("""
-    <!DOCTYPE html>
-    <html>
-
-    <head>
-        <title>Add Product</title>
-
-        <style>
-            body {
-                font-family: Arial;
-                background: #f5f5f5;
-                padding: 30px;
             }
 
             .box {
@@ -291,330 +84,157 @@ def add_product():
                 margin: auto;
                 background: white;
                 padding: 25px;
-                border-radius: 12px;
+                border-radius: 15px;
+                box-shadow: 0 3px 12px rgba(0,0,0,0.1);
             }
 
-            input, textarea, select {
-                width: 100%;
+            h1 {
+                text-align: center;
+            }
+
+            .order-info {
+                line-height: 1.8;
+            }
+
+            .status {
+                margin-top: 25px;
+            }
+
+            .step {
                 padding: 12px;
                 margin: 8px 0;
-                box-sizing: border-box;
+                border-radius: 8px;
+                background: #eee;
             }
 
-            button {
-                width: 100%;
-                padding: 12px;
-                background: black;
-                color: white;
-                border: none;
-                border-radius: 6px;
+            .done {
+                background: #d9f7df;
+                color: #14752c;
+                font-weight: bold;
+            }
+
+            .current {
+                border: 2px solid #14752c;
+                font-weight: bold;
+            }
+
+            .back {
+                display: block;
+                margin-top: 20px;
+                text-align: center;
             }
         </style>
     </head>
 
     <body>
 
-        <div class="box">
+    <div class="box">
 
-            <h2>Add Product</h2>
+        <h1>Track your order</h1>
 
-            <form method="POST">
+        <h3>{{ order.order_id }}</h3>
 
-                <input type="text" name="name"
-                    placeholder="Product Name" required>
-
-                <input type="text" name="price"
-                    placeholder="Price" required>
-
-                <select name="category" required>
-
-                    <option value="">Select Category</option>
-                    <option value="Phones">Phones</option>
-                    <option value="Laptops">Laptops</option>
-                    <option value="Accessories">Accessories</option>
-
-                </select>
-
-                <textarea name="description"
-                    placeholder="Product Description"
-                    rows="5"></textarea>
-
-                <input type="text" name="image"
-                    placeholder="Product Image URL">
-
-                <button type="submit">
-                    Save Product
-                </button>
-
-            </form>
-
+        <div class="order-info">
+            <b>Customer:</b> {{ order.customer }}<br>
+            <b>Product:</b> {{ order.product }}<br>
+            <b>Amount:</b> ₦{{ "{:,}".format(order.amount) }}<br>
+            <b>Payment:</b> {{ order.payment }}<br>
+            <b>Status:</b> {{ order.status }}
         </div>
 
-    </body>
-    </html>
-    """)
+        <div class="status">
 
+            <h3>Order progress</h3>
 
-# ---------------- MY PRODUCTS ----------------
+            {% for step in steps %}
 
-@app.route("/vendor/products")
-def vendor_products():
+                {% if steps.index(step) <= current_index %}
 
-    return render_template_string("""
-    <!DOCTYPE html>
-    <html>
+                    <div class="step done">
+                        ✓ {{ step }}
+                    </div>
 
-    <head>
-        <title>My Products</title>
+                {% else %}
 
-        <style>
-            body {
-                font-family: Arial;
-                background: #f5f5f5;
-                padding: 20px;
-            }
+                    <div class="step">
+                        ○ {{ step }}
+                    </div>
 
-            .product {
-                background: white;
-                padding: 20px;
-                margin-bottom: 15px;
-                border-radius: 10px;
-            }
-
-            img {
-                max-width: 150px;
-                border-radius: 8px;
-            }
-
-            a {
-                display: inline-block;
-                margin-top: 20px;
-                padding: 10px 15px;
-                background: black;
-                color: white;
-                text-decoration: none;
-                border-radius: 6px;
-            }
-        </style>
-
-    </head>
-
-    <body>
-
-        <h1>My Products</h1>
-
-        {% if products %}
-
-            {% for product in products %}
-
-            <div class="product">
-
-                {% if product.image %}
-                    <img src="{{ product.image }}">
                 {% endif %}
-
-                <h2>{{ product.name }}</h2>
-
-                <p>
-                    <strong>Price:</strong>
-                    {{ product.price }}
-                </p>
-
-                <p>
-                    <strong>Category:</strong>
-                    {{ product.category }}
-                </p>
-
-                <p>
-                    {{ product.description }}
-                </p>
-
-            </div>
 
             {% endfor %}
 
-        {% else %}
+        </div>
 
-            <p>You have not added any products yet.</p>
-
-        {% endif %}
-
-        <a href="/vendor/dashboard">
-            Back to Dashboard
+        <a class="back" href="/">
+            ← Back to Marketplace
         </a>
+
+    </div>
 
     </body>
     </html>
-    """, products=products)
+    """,
+    order=order,
+    steps=STATUS_STEPS,
+    current_index=STATUS_STEPS.index(order["status"])
+    )
 
 
-# ---------------- CREATE CUSTOMER ORDER ----------------
-
-@app.route("/api/orders", methods=["POST"])
-def create_order():
-
-    data = request.get_json()
-
-    if not data:
-        return jsonify({
-            "success": False,
-            "message": "No order data received"
-        }), 400
-
-    customer_name = data.get("name")
-    phone = data.get("phone")
-    address = data.get("address")
-    state = data.get("state")
-    payment = data.get("payment")
-    items = data.get("items", [])
-
-    if not customer_name or not phone or not address or not state:
-        return jsonify({
-            "success": False,
-            "message": "Please provide all customer details"
-        }), 400
-
-    if not items:
-        return jsonify({
-            "success": False,
-            "message": "Your cart is empty"
-        }), 400
-
-    order_id = "JINJA-" + str(int(time.time()))[-7:]
-
-    homepage_prices = {
-        1: 850000,
-        2: 780000,
-        3: 310000,
-        4: 275000,
-        5: 690000,
-        6: 720000,
-        7: 45000,
-        8: 18000,
-        9: 35000,
-        10: 12000,
-        11: 455000,
-        12: 1450000
-    }
-
-    homepage_names = {
-        1: "iPhone 15 128GB",
-        2: "Samsung Galaxy S24",
-        3: "Tecno Camon Series",
-        4: "Infinix Note Series",
-        5: "HP Core i5 Laptop",
-        6: "Lenovo ThinkPad",
-        7: "AirPods Style Earbuds",
-        8: "65W Fast Charger",
-        9: "Power Bank 20,000mAh",
-        10: "Phone Protective Case",
-        11: "Samsung A55",
-        12: "MacBook Air"
-    }
-
-    total = 0
-    product_names = []
-
-    for item in items:
-
-        product_id = item.get("id")
-        quantity = int(item.get("qty", 1))
-
-        total += homepage_prices.get(product_id, 0) * quantity
-
-        product_names.append(
-            homepage_names.get(product_id, "Product")
-        )
-
-    order = {
-        "order_id": order_id,
-        "product": ", ".join(product_names),
-        "customer": customer_name,
-        "phone": phone,
-        "address": address + ", " + state,
-        "amount": "₦" + format(int(total), ","),
-        "status": "Pending",
-        "payment": payment,
-        "items": items
-    }
-
-    sample_orders.append(order)
-
-    return jsonify({
-        "success": True,
-        "message": "Order created successfully",
-        "order": order
-    })
-
-
-# ---------------- TRACK CUSTOMER ORDER ----------------
-
-@app.route("/api/orders/<order_id>", methods=["GET"])
-def get_order(order_id):
-
-    for order in sample_orders:
-
-        if order["order_id"] == order_id:
-
-            return jsonify({
-                "success": True,
-                "order": order
-            })
-
-    return jsonify({
-        "success": False,
-        "message": "Order not found"
-    }), 404
-
-
-# ---------------- VENDOR ORDERS ----------------
-
-@app.route("/vendor/orders", methods=["GET"])
-def vendor_orders():
+# -----------------------------
+# ADMIN PAGE
+# -----------------------------
+@app.route("/admin")
+def admin():
 
     return render_template_string("""
     <!DOCTYPE html>
     <html>
-
     <head>
 
-        <title>Customer Orders</title>
+        <title>JINJA Admin</title>
 
         <style>
 
             body {
-                font-family: Arial;
+                font-family: Arial, sans-serif;
                 background: #f5f5f5;
                 padding: 20px;
+            }
+
+            .container {
+                max-width: 900px;
+                margin: auto;
             }
 
             .order {
                 background: white;
                 padding: 20px;
-                margin-bottom: 15px;
-                border-radius: 10px;
+                margin-bottom: 20px;
+                border-radius: 15px;
+                box-shadow: 0 3px 10px rgba(0,0,0,0.1);
             }
 
-            select, button {
+            select {
                 padding: 10px;
-                margin-top: 8px;
+                border-radius: 8px;
+                border: 1px solid #ccc;
+                margin-top: 10px;
             }
 
             button {
-                background: black;
-                color: white;
+                padding: 10px 15px;
                 border: none;
-                border-radius: 6px;
+                border-radius: 8px;
+                background: #111;
+                color: white;
+                cursor: pointer;
+                margin-left: 5px;
             }
 
-            a {
+            .track {
                 display: inline-block;
-                margin-top: 20px;
-                padding: 10px 15px;
-                background: black;
-                color: white;
-                text-decoration: none;
-                border-radius: 6px;
+                margin-top: 15px;
             }
 
         </style>
@@ -623,135 +243,110 @@ def vendor_orders():
 
     <body>
 
-        <h1>📋 Customer Orders</h1>
+    <div class="container">
 
-        {% if orders %}
+        <h1>JINJA Admin</h1>
 
-            {% for order in orders %}
+        <h2>Orders</h2>
 
-            <div class="order">
+        {% for order in orders %}
 
-                <h2>{{ order.order_id }}</h2>
+        <div class="order">
 
-                <p>
-                    <strong>Product:</strong>
-                    {{ order.product }}
-                </p>
+            <h3>{{ order.order_id }}</h3>
 
-                <p>
-                    <strong>Customer:</strong>
-                    {{ order.customer }}
-                </p>
+            <p>
+                <b>Customer:</b> {{ order.customer }}
+            </p>
 
-                <p>
-                    <strong>Phone:</strong>
-                    {{ order.phone }}
-                </p>
+            <p>
+                <b>Product:</b> {{ order.product }}
+            </p>
 
-                <p>
-                    <strong>Address:</strong>
-                    {{ order.address }}
-                </p>
+            <p>
+                <b>Amount:</b>
+                ₦{{ "{:,}".format(order.amount) }}
+            </p>
 
-                <p>
-                    <strong>Amount:</strong>
-                    {{ order.amount }}
-                </p>
+            <p>
+                <b>Payment:</b> {{ order.payment }}
+            </p>
 
-                <p>
-                    <strong>Status:</strong>
-                    {{ order.status }}
-                </p>
+            <p>
+                <b>Current Status:</b> {{ order.status }}
+            </p>
 
-                <form method="POST"
-                    action="/vendor/orders/update/{{ order.order_id }}">
+            <form method="POST"
+                  action="/admin/update-status/{{ order.order_id }}">
 
-                    <select name="status">
+                <label>
+                    Change status:
+                </label>
 
-                        <option value="Pending"
-                            {% if order.status == "Pending" %}selected{% endif %}>
-                            Pending
-                        </option>
+                <select name="status">
 
-                        <option value="Confirmed"
-                            {% if order.status == "Confirmed" %}selected{% endif %}>
-                            Confirmed
-                        </option>
+                    {% for status in steps %}
 
-                        <option value="Shipped"
-                            {% if order.status == "Shipped" %}selected{% endif %}>
-                            Shipped
-                        </option>
+                    <option value="{{ status }}"
+                        {% if status == order.status %}
+                            selected
+                        {% endif %}>
+                        {{ status }}
+                    </option>
 
-                        <option value="Delivered"
-                            {% if order.status == "Delivered" %}selected{% endif %}>
-                            Delivered
-                        </option>
+                    {% endfor %}
 
-                    </select>
+                </select>
 
-                    <button type="submit">
-                        Update Order
-                    </button>
+                <button type="submit">
+                    Update Status
+                </button>
 
-                </form>
+            </form>
 
-            </div>
+            <a class="track"
+               href="/track/{{ order.order_id }}">
+                Track Customer Order
+            </a>
 
-            {% endfor %}
+        </div>
 
-        {% else %}
+        {% endfor %}
 
-            <p>No customer orders yet.</p>
-
-        {% endif %}
-
-        <a href="/vendor/dashboard">
-            Back to Dashboard
-        </a>
+    </div>
 
     </body>
-
     </html>
-    """, orders=sample_orders)
+    """,
+    orders=orders,
+    steps=STATUS_STEPS
+    )
 
 
-# ---------------- UPDATE ORDER STATUS ----------------
-
-@app.route(
-    "/vendor/orders/update/<order_id>",
-    methods=["POST"]
-)
-def update_order(order_id):
+# -----------------------------
+# UPDATE ORDER STATUS
+# -----------------------------
+@app.route("/admin/update-status/<order_id>", methods=["POST"])
+def update_status(order_id):
 
     new_status = request.form.get("status")
 
-    allowed_statuses = [
-        "Pending",
-        "Confirmed",
-        "Shipped",
-        "Delivered"
-    ]
+    if new_status not in STATUS_STEPS:
+        return "Invalid status", 400
 
-    if new_status not in allowed_statuses:
-        return "Invalid order status", 400
-
-    for order in sample_orders:
+    for order in orders:
 
         if order["order_id"] == order_id:
 
             order["status"] = new_status
 
-            return redirect(url_for("vendor_orders"))
+            break
 
-    return "Order not found", 404
+    return redirect(url_for("admin"))
 
 
-# ---------------- START APP ----------------
-
+# -----------------------------
+# RUN APP
+# -----------------------------
 if __name__ == "__main__":
-
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 10000))
-)
+    app.run(host="0.0.0.0", port=5000, debug=True)
