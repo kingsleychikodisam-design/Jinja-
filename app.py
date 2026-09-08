@@ -190,7 +190,8 @@ def home():
         <a href="/admin">Admin Panel</a>
     """
 
-    return page("JINJA Marketplace", body)@app.route("/order/<int:product_id>", methods=["GET", "POST"])
+    return page("JINJA Marketplace", body)
+    @app.route("/order/<int:product_id>", methods=["GET", "POST"])
 def place_order(product_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
