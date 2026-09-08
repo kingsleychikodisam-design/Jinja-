@@ -1,24 +1,11 @@
-from flask import Flask, request, redirect, url_for, render_template_string, jsonify
+from flask import Flask, request, redirect, url_for, render_template_string
+import sqlite3
+import os
 
 app = Flask(__name__)
 
-# -----------------------------
-# ORDERS
-# -----------------------------
-orders = [
-    {
-        "order_id": "JINJA-8893429",
-        "customer": "Kingsley Samuel",
-        "product": "Tecno Camon Series",
-        "amount": 310000,
-        "payment": "Pay on delivery",
-        "status": "Pending"
-    }
-]
+DATABASE = "jinja.db"
 
-# -----------------------------
-# STATUS ORDER
-# -----------------------------
 STATUS_STEPS = [
     "Pending",
     "Confirmed",
@@ -27,9 +14,59 @@ STATUS_STEPS = [
 ]
 
 
-# -----------------------------
-# HOME PAGE
-# -----------------------------
+# =============================
+# DATABASE
+# =============================
+
+def get_db():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    conn = get_db()
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id TEXT UNIQUE NOT NULL,
+            customer TEXT NOT NULL,
+            product TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            payment TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'Pending'
+        )
+    """)
+
+    # Create the sample order only if it doesn't already exist
+    existing = conn.execute(
+        "SELECT * FROM orders WHERE order_id = ?",
+        ("JINJA-8893429",)
+    ).fetchone()
+
+    if existing is None:
+        conn.execute("""
+            INSERT INTO orders
+            (order_id, customer, product, amount, payment, status)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            "JINJA-8893429",
+            "Kingsley Samuel",
+            "Tecno Camon Series",
+            310000,
+            "Pay on delivery",
+            "Pending"
+        ))
+
+    conn.commit()
+    conn.close()
+
+
+# =============================
+# HOME
+# =============================
+
 @app.route("/")
 def home():
     return """
@@ -49,30 +86,39 @@ def home():
     """
 
 
-# -----------------------------
+# =============================
 # TRACK ORDER
-# -----------------------------
+# =============================
+
 @app.route("/track/<order_id>")
 def track_order(order_id):
 
-    order = next(
-        (o for o in orders if o["order_id"] == order_id),
-        None
-    )
+    conn = get_db()
 
-    if not order:
+    order = conn.execute(
+        "SELECT * FROM orders WHERE order_id = ?",
+        (order_id,)
+    ).fetchone()
+
+    conn.close()
+
+    if order is None:
         return """
         <h2>Order not found</h2>
         <a href="/">Back to marketplace</a>
         """, 404
 
+    current_index = STATUS_STEPS.index(order["status"])
+
     return render_template_string("""
     <!DOCTYPE html>
     <html>
+
     <head>
-        <title>Track your order</title>
+        <title>Track Your Order - JINJA</title>
 
         <style>
+
             body {
                 font-family: Arial, sans-serif;
                 background: #f5f5f5;
@@ -92,19 +138,15 @@ def track_order(order_id):
                 text-align: center;
             }
 
-            .order-info {
+            .info {
                 line-height: 1.8;
-            }
-
-            .status {
-                margin-top: 25px;
             }
 
             .step {
                 padding: 12px;
                 margin: 8px 0;
                 border-radius: 8px;
-                background: #eee;
+                background: #eeeeee;
             }
 
             .done {
@@ -113,42 +155,51 @@ def track_order(order_id):
                 font-weight: bold;
             }
 
-            .current {
-                border: 2px solid #14752c;
-                font-weight: bold;
-            }
-
             .back {
                 display: block;
-                margin-top: 20px;
                 text-align: center;
+                margin-top: 20px;
             }
+
         </style>
     </head>
 
     <body>
 
-    <div class="box">
+        <div class="box">
 
-        <h1>Track your order</h1>
+            <h1>Track your order</h1>
 
-        <h3>{{ order.order_id }}</h3>
+            <h3>{{ order["order_id"] }}</h3>
 
-        <div class="order-info">
-            <b>Customer:</b> {{ order.customer }}<br>
-            <b>Product:</b> {{ order.product }}<br>
-            <b>Amount:</b> ₦{{ "{:,}".format(order.amount) }}<br>
-            <b>Payment:</b> {{ order.payment }}<br>
-            <b>Status:</b> {{ order.status }}
-        </div>
+            <div class="info">
 
-        <div class="status">
+                <b>Customer:</b>
+                {{ order["customer"] }}
+                <br>
+
+                <b>Product:</b>
+                {{ order["product"] }}
+                <br>
+
+                <b>Amount:</b>
+                ₦{{ "{:,}".format(order["amount"]) }}
+                <br>
+
+                <b>Payment:</b>
+                {{ order["payment"] }}
+                <br>
+
+                <b>Status:</b>
+                {{ order["status"] }}
+
+            </div>
 
             <h3>Order progress</h3>
 
             {% for step in steps %}
 
-                {% if steps.index(step) <= current_index %}
+                {% if loop.index0 <= current_index %}
 
                     <div class="step done">
                         ✓ {{ step }}
@@ -164,32 +215,42 @@ def track_order(order_id):
 
             {% endfor %}
 
+            <a class="back" href="/">
+                ← Back to Marketplace
+            </a>
+
         </div>
 
-        <a class="back" href="/">
-            ← Back to Marketplace
-        </a>
-
-    </div>
-
     </body>
+
     </html>
     """,
     order=order,
     steps=STATUS_STEPS,
-    current_index=STATUS_STEPS.index(order["status"])
+    current_index=current_index
     )
 
 
-# -----------------------------
-# ADMIN PAGE
-# -----------------------------
+# =============================
+# ADMIN
+# =============================
+
 @app.route("/admin")
 def admin():
 
+    conn = get_db()
+
+    orders = conn.execute(
+        "SELECT * FROM orders ORDER BY id DESC"
+    ).fetchall()
+
+    conn.close()
+
     return render_template_string("""
     <!DOCTYPE html>
+
     <html>
+
     <head>
 
         <title>JINJA Admin</title>
@@ -219,7 +280,6 @@ def admin():
                 padding: 10px;
                 border-radius: 8px;
                 border: 1px solid #ccc;
-                margin-top: 10px;
             }
 
             button {
@@ -229,7 +289,6 @@ def admin():
                 background: #111;
                 color: white;
                 cursor: pointer;
-                margin-left: 5px;
             }
 
             .track {
@@ -243,79 +302,86 @@ def admin():
 
     <body>
 
-    <div class="container">
+        <div class="container">
 
-        <h1>JINJA Admin</h1>
+            <h1>JINJA Admin</h1>
 
-        <h2>Orders</h2>
+            <h2>Orders</h2>
 
-        {% for order in orders %}
+            {% for order in orders %}
 
-        <div class="order">
+                <div class="order">
 
-            <h3>{{ order.order_id }}</h3>
+                    <h3>{{ order["order_id"] }}</h3>
 
-            <p>
-                <b>Customer:</b> {{ order.customer }}
-            </p>
+                    <p>
+                        <b>Customer:</b>
+                        {{ order["customer"] }}
+                    </p>
 
-            <p>
-                <b>Product:</b> {{ order.product }}
-            </p>
+                    <p>
+                        <b>Product:</b>
+                        {{ order["product"] }}
+                    </p>
 
-            <p>
-                <b>Amount:</b>
-                ₦{{ "{:,}".format(order.amount) }}
-            </p>
+                    <p>
+                        <b>Amount:</b>
+                        ₦{{ "{:,}".format(order["amount"]) }}
+                    </p>
 
-            <p>
-                <b>Payment:</b> {{ order.payment }}
-            </p>
+                    <p>
+                        <b>Payment:</b>
+                        {{ order["payment"] }}
+                    </p>
 
-            <p>
-                <b>Current Status:</b> {{ order.status }}
-            </p>
+                    <p>
+                        <b>Current Status:</b>
+                        {{ order["status"] }}
+                    </p>
 
-            <form method="POST"
-                  action="/admin/update-status/{{ order.order_id }}">
+                    <form
+                        method="POST"
+                        action="/admin/update-status/{{ order['order_id'] }}"
+                    >
 
-                <label>
-                    Change status:
-                </label>
+                        <select name="status">
 
-                <select name="status">
+                            {% for status in steps %}
 
-                    {% for status in steps %}
+                                <option
+                                    value="{{ status }}"
+                                    {% if status == order["status"] %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ status }}
+                                </option>
 
-                    <option value="{{ status }}"
-                        {% if status == order.status %}
-                            selected
-                        {% endif %}>
-                        {{ status }}
-                    </option>
+                            {% endfor %}
 
-                    {% endfor %}
+                        </select>
 
-                </select>
+                        <button type="submit">
+                            Update Status
+                        </button>
 
-                <button type="submit">
-                    Update Status
-                </button>
+                    </form>
 
-            </form>
+                    <a
+                        class="track"
+                        href="/track/{{ order['order_id'] }}"
+                    >
+                        Track Customer Order
+                    </a>
 
-            <a class="track"
-               href="/track/{{ order.order_id }}">
-                Track Customer Order
-            </a>
+                </div>
+
+            {% endfor %}
 
         </div>
 
-        {% endfor %}
-
-    </div>
-
     </body>
+
     </html>
     """,
     orders=orders,
@@ -323,10 +389,14 @@ def admin():
     )
 
 
-# -----------------------------
-# UPDATE ORDER STATUS
-# -----------------------------
-@app.route("/admin/update-status/<order_id>", methods=["POST"])
+# =============================
+# UPDATE STATUS
+# =============================
+
+@app.route(
+    "/admin/update-status/<order_id>",
+    methods=["POST"]
+)
 def update_status(order_id):
 
     new_status = request.form.get("status")
@@ -334,19 +404,39 @@ def update_status(order_id):
     if new_status not in STATUS_STEPS:
         return "Invalid status", 400
 
-    for order in orders:
+    conn = get_db()
 
-        if order["order_id"] == order_id:
+    conn.execute(
+        """
+        UPDATE orders
+        SET status = ?
+        WHERE order_id = ?
+        """,
+        (new_status, order_id)
+    )
 
-            order["status"] = new_status
-
-            break
+    conn.commit()
+    conn.close()
 
     return redirect(url_for("admin"))
 
 
-# -----------------------------
+# =============================
+# START DATABASE
+# =============================
+
+init_db()
+
+
+# =============================
 # RUN APP
-# -----------------------------
+# =============================
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=True
+    )
