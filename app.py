@@ -1,7 +1,7 @@
 from flask import Flask, request, redirect, url_for
 import os
-import html
 import random
+import html
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -23,12 +23,11 @@ def init_db():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS vendors (
             id SERIAL PRIMARY KEY,
-            vendor_name TEXT NOT NULL,
             business_name TEXT NOT NULL,
+            name TEXT NOT NULL,
             phone TEXT NOT NULL,
-            email TEXT NOT NULL,
-            address TEXT NOT NULL,
-            category TEXT NOT NULL
+            email TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
@@ -53,8 +52,10 @@ def init_db():
             phone TEXT NOT NULL,
             address TEXT NOT NULL,
             amount INTEGER NOT NULL,
-            payment TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'Pending'
+            status TEXT DEFAULT 'Pending',
+            vendor_id INTEGER,
+            commission_amount NUMERIC DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
@@ -80,38 +81,64 @@ except Exception as e:
 
 
 def page(title, body):
-    return f"""
+    return """
     <!DOCTYPE html>
     <html>
     <head>
-        <title>{html.escape(title)}</title>
+        <title>""" + title + """</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
-            body {{
+            body {
                 font-family: Arial, sans-serif;
+                background: #f4f4f4;
+                margin: 0;
+                padding: 20px;
+            }
+            .container {
                 max-width: 900px;
-                margin: 20px auto;
-                padding: 15px;
-            }}
-            input, select, textarea {{
-                width: 100%;
-                padding: 10px;
-                margin: 6px 0 12px;
-                box-sizing: border-box;
-            }}
-            button {{
-                padding: 10px 18px;
-            }}
-            .box {{
-                border: 1px solid #ddd;
-                padding: 15px;
+                margin: auto;
+            }
+            .box {
+                background: white;
+                padding: 20px;
                 margin: 15px 0;
-                border-radius: 8px;
-            }}
+                border-radius: 10px;
+                box-shadow: 0 2px 8px #ddd;
+            }
+            input, textarea, select {
+                width: 100%;
+                padding: 12px;
+                margin: 8px 0 15px;
+                box-sizing: border-box;
+            }
+            button, .button {
+                background: #111;
+                color: white;
+                padding: 12px 18px;
+                border: none;
+                border-radius: 6px;
+                text-decoration: none;
+                display: inline-block;
+                cursor: pointer;
+            }
+            a {
+                color: #111;
+            }
+            .nav {
+                margin-bottom: 20px;
+            }
         </style>
     </head>
     <body>
-        {body}
+        <div class="container">
+            <div class="nav">
+                <a href="/">Home</a> |
+                <a href="/track">Track Order</a> |
+                <a href="/vendor/register">Become a Vendor</a> |
+                <a href="/admin">Admin Panel</a>
+            </div>
+            """ + body + """
+        </div>
     </body>
     </html>
     """
@@ -123,10 +150,10 @@ def home():
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     cur.execute("""
-        SELECT p.*, v.business_name
-        FROM products p
-        LEFT JOIN vendors v ON p.vendor_id = v.id
-        ORDER BY p.id DESC
+        SELECT products.*, vendors.business_name
+        FROM products
+        LEFT JOIN vendors ON products.vendor_id = vendors.id
+        ORDER BY products.id DESC
     """)
 
     products = cur.fetchall()
@@ -134,120 +161,88 @@ def home():
     cur.close()
     conn.close()
 
-    product_html = ""
+    items = ""
+
+    if not products:
+        items = """
+        <div class="box">
+            <h3>No products yet</h3>
+            <p>Vendors can register and add products.</p>
+        </div>
+        """
 
     for product in products:
-        product_html += f"""
+        pid = product["id"]
+        name = html.escape(product["product_name"])
+        description = html.escape(product["description"] or "")
+        price = product["price"]
+        vendor = html.escape(product["business_name"] or "JINJA")
+
+        items += f"""
         <div class="box">
-            <h2>{html.escape(product["product_name"])}</h2>
-            <p>{html.escape(product["description"] or "")}</p>
-            <p><b>Price:</b> ₦{int(product["price"]):,}</p>
-            <p><b>Supplier:</b>
-                {html.escape(product["business_name"] or "JINJA")}
-            </p>
-            <a href="/order/{product["id"]}">
-                <button>Order Now</button>
-            </a>
+            <h2>{name}</h2>
+            <p>{description}</p>
+            <p><b>Price:</b> ₦{price:,}</p>
+            <p><b>Supplier:</b> {vendor}</p>
+            <a class="button" href="/order/{pid}">Order Now</a>
         </div>
         """
 
-    if not product_html:
-        product_html = """
-        <div class="box">
-            <p>No products have been added yet.</p>
-        </div>
-        """
+    body = """
+    <h1>JINJA Marketplace</h1>
+    <p>Buy products from trusted suppliers.</p>
 
-    body = f"""
-        <h1>JINJA Marketplace</h1>
-
-        <p>Shop products from our suppliers.</p>
-
-        <h2>Products</h2>
-
-        {product_html}
-
-        <hr>
-
+    <div class="box">
         <h2>Track Your Order</h2>
-
-        <form action="/track" method="get">
-            <input
-                type="text"
-                name="order_id"
-                placeholder="Enter Order ID"
-                required
-            >
-            <button type="submit">Track Order</button>
-        </form>
-
-        <br>
-
-        <a href="/vendor/register">Become a Vendor</a>
-
-        <br><br>
-
-        <a href="/admin">Admin Panel</a>
-    """
+        <a class="button" href="/track">Track Order</a>
+    </div>
+    """ + items
 
     return page("JINJA Marketplace", body)
-    @app.route("/order/<int:product_id>", methods=["GET", "POST"])
+
+
+@app.route("/order/<int:product_id>", methods=["GET", "POST"])
 def place_order(product_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
-    cur.execute("""
-        SELECT p.*, v.business_name
-        FROM products p
-        LEFT JOIN vendors v ON p.vendor_id = v.id
-        WHERE p.id = %s
-    """, (product_id,))
+    cur.execute(
+        "SELECT * FROM products WHERE id = %s",
+        (product_id,)
+    )
 
     product = cur.fetchone()
 
-    cur.close()
-    conn.close()
-
     if not product:
-        return page(
-            "Product Not Found",
-            "<h2>Product not found.</h2><a href='/'>Back Home</a>"
-        )
+        cur.close()
+        conn.close()
+        return page("Product Not Found", "<h2>Product not found.</h2>")
 
     if request.method == "POST":
-        customer = request.form["customer"]
-        phone = request.form["phone"]
-        address = request.form["address"]
-        payment = request.form["payment"]
+        customer = request.form.get("customer", "").strip()
+        phone = request.form.get("phone", "").strip()
+        address = request.form.get("address", "").strip()
+
+        if not customer or not phone or not address:
+            cur.close()
+            conn.close()
+            return page(
+                "Order Error",
+                "<h2>Please fill in all fields.</h2><a href='/order/" +
+                str(product_id) + "'>Go back</a>"
+            )
+
+        amount = product["price"]
+        commission_percent = float(product["commission_percent"] or 0)
+        commission = amount * commission_percent / 100
 
         order_id = "JINJA-" + str(random.randint(1000000, 9999999))
-        amount = int(product["price"])
-
-        commission_percent = float(
-            product["commission_percent"] or 0
-        )
-
-        commission_amount = amount * commission_percent / 100
-
-        conn = get_db()
-        cur = conn.cursor()
 
         cur.execute("""
             INSERT INTO orders
-            (
-                order_id,
-                product,
-                customer,
-                phone,
-                address,
-                amount,
-                payment,
-                status,
-                vendor_id,
-                commission_amount
-            )
-            VALUES
-            (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (order_id, product, customer, phone, address, amount,
+             status, vendor_id, commission_amount)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             order_id,
             product["product_name"],
@@ -255,299 +250,165 @@ def place_order(product_id):
             phone,
             address,
             amount,
-            payment,
             "Pending",
             product["vendor_id"],
-            commission_amount
+            commission
         ))
 
         conn.commit()
         cur.close()
         conn.close()
 
-        return page(
-            "Order Successful",
-            f"""
+        body = f"""
+        <div class="box">
             <h1>Order Received!</h1>
-
-            <p>Your order has been submitted to JINJA.</p>
-
+            <p>Your order has been created successfully.</p>
             <h2>Order ID: {order_id}</h2>
+            <p>Keep this Order ID to track your order.</p>
+            <a class="button" href="/track">Track Order</a>
+        </div>
+        """
 
-            <p>Please save this Order ID.</p>
+        return page("Order Received", body)
 
-            <a href="/track?order_id={order_id}">
-                <button>Track Order</button>
-            </a>
-
-            <br><br>
-
-            <a href="/">Back to Marketplace</a>
-            """
-        )
+    name = html.escape(product["product_name"])
+    price = product["price"]
 
     body = f"""
-        <h1>Order Product</h1>
-
-        <div class="box">
-            <h2>{html.escape(product["product_name"])}</h2>
-
-            <p>{html.escape(product["description"] or "")}</p>
-
-            <p>
-                <b>Price:</b>
-                ₦{int(product["price"]):,}
-            </p>
-
-            <p>
-                <b>Supplier:</b>
-                {html.escape(product["business_name"] or "JINJA")}
-            </p>
-        </div>
+    <div class="box">
+        <h1>Order {name}</h1>
+        <h2>₦{price:,}</h2>
 
         <form method="POST">
-
             <label>Your Name</label>
-            <input
-                name="customer"
-                placeholder="Enter your name"
-                required
-            >
+            <input name="customer" required>
 
             <label>Phone Number</label>
-            <input
-                name="phone"
-                placeholder="Enter your phone number"
-                required
-            >
+            <input name="phone" required>
 
             <label>Delivery Address</label>
-            <textarea
-                name="address"
-                placeholder="Enter your delivery address"
-                required
-            ></textarea>
+            <textarea name="address" required></textarea>
 
-            <label>Payment</label>
-            <select name="payment" required>
-                <option value="Pay on delivery">
-                    Pay on delivery
-                </option>
-            </select>
-
-            <button type="submit">
-                Place Order
-            </button>
-
+            <button type="submit">Place Order</button>
         </form>
-
-        <br>
-
-        <a href="/">Back to Marketplace</a>
+    </div>
     """
-
-    return page("Order Product", body)
-
-
-@app.route("/track")
-def track():
-    order_id = request.args.get("order_id")
-
-    if not order_id:
-        return redirect(url_for("home"))
-
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    cur.execute("""
-        SELECT o.*, v.business_name
-        FROM orders o
-        LEFT JOIN vendors v ON o.vendor_id = v.id
-        WHERE o.order_id = %s
-    """, (order_id,))
-
-    order = cur.fetchone()
 
     cur.close()
     conn.close()
 
-    if not order:
-        return page(
-            "Order Not Found",
-            """
-            <h2>Order not found.</h2>
-            <p>Please check your Order ID.</p>
-            <a href="/">Go Back</a>
-            """
+    return page("Place Order", body)
+
+
+@app.route("/track", methods=["GET", "POST"])
+def track():
+    order = None
+
+    if request.method == "POST":
+        order_id = request.form.get("order_id", "").strip()
+
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        cur.execute(
+            "SELECT * FROM orders WHERE order_id = %s",
+            (order_id,)
         )
 
-    statuses = [
-        "Pending",
-        "Confirmed",
-        "Shipped",
-        "Delivered"
-    ]
+        order = cur.fetchone()
 
-    current_status = order["status"]
+        cur.close()
+        conn.close()
 
-    if current_status not in statuses:
-        current_status = "Pending"
+    body = """
+    <div class="box">
+        <h1>Track Your Order</h1>
 
-    current_index = statuses.index(current_status)
-
-    progress = ""
-
-    for index, status in enumerate(statuses):
-        if index <= current_index:
-            progress += f"<li><b>✓ {status}</b></li>"
-        else:
-            progress += f"<li>{status}</li>"
-
-    body = f"""
-        <h1>Order Tracking</h1>
-
-        <h2>{html.escape(order["order_id"])}</h2>
-
-        <p>
-            <b>Product:</b>
-            {html.escape(order["product"])}
-        </p>
-
-        <p>
-            <b>Customer:</b>
-            {html.escape(order["customer"])}
-        </p>
-
-        <p>
-            <b>Amount:</b>
-            ₦{int(order["amount"]):,}
-        </p>
-
-        <p>
-            <b>Payment:</b>
-            {html.escape(order["payment"])}
-        </p>
-
-        <p>
-            <b>Supplier:</b>
-            {html.escape(order["business_name"] or "JINJA")}
-        </p>
-
-        <h3>Status: {html.escape(order["status"])}</h3>
-
-        <ol>
-            {progress}
-        </ol>
-
-        <a href="/">Back Home</a>
+        <form method="POST">
+            <label>Enter Order ID</label>
+            <input name="order_id" placeholder="Example: JINJA-1234567" required>
+            <button type="submit">Track Order</button>
+        </form>
+    </div>
     """
 
+    if request.method == "POST":
+        if order:
+            body += f"""
+            <div class="box">
+                <h2>Order Found</h2>
+                <p><b>Order ID:</b> {html.escape(order["order_id"])}</p>
+                <p><b>Product:</b> {html.escape(order["product"])}</p>
+                <p><b>Customer:</b> {html.escape(order["customer"])}</p>
+                <p><b>Status:</b> {html.escape(order["status"])}</p>
+            </div>
+            """
+        else:
+            body += """
+            <div class="box">
+                <h3>Order not found.</h3>
+                <p>Please check your Order ID and try again.</p>
+            </div>
+            """
+
     return page("Track Order", body)
-    @app.route("/vendor/register", methods=["GET", "POST"])
+
+
+@app.route("/vendor/register", methods=["GET", "POST"])
 def vendor_register():
     if request.method == "POST":
-        vendor_name = request.form["vendor_name"]
-        business_name = request.form["business_name"]
-        phone = request.form["phone"]
-        email = request.form["email"]
-        address = request.form["address"]
-        category = request.form["category"]
+        business_name = request.form.get("business_name", "").strip()
+        name = request.form.get("name", "").strip()
+        phone = request.form.get("phone", "").strip()
+        email = request.form.get("email", "").strip()
 
         conn = get_db()
         cur = conn.cursor()
 
         cur.execute("""
             INSERT INTO vendors
-            (vendor_name, business_name, phone, email, address, category)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (
-            vendor_name,
-            business_name,
-            phone,
-            email,
-            address,
-            category
-        ))
+            (business_name, name, phone, email)
+            VALUES (%s, %s, %s, %s)
+        """, (business_name, name, phone, email))
 
         conn.commit()
         cur.close()
         conn.close()
 
         return page(
-            "Registration Successful",
+            "Vendor Registered",
             """
-            <h2>Vendor registration successful!</h2>
-            <p>Your business has been registered with JINJA.</p>
-            <a href="/">Back to JINJA</a>
+            <div class="box">
+                <h1>Vendor Registration Successful!</h1>
+                <p>Your supplier account has been added.</p>
+                <a class="button" href="/vendor/product">Add Product</a>
+            </div>
             """
         )
 
     body = """
-        <h1>Become a JINJA Vendor</h1>
+    <div class="box">
+        <h1>Become a Vendor</h1>
 
         <form method="POST">
+            <label>Business Name</label>
+            <input name="business_name" required>
 
             <label>Your Name</label>
-            <input
-                name="vendor_name"
-                placeholder="Your Name"
-                required
-            >
-
-            <label>Business Name</label>
-            <input
-                name="business_name"
-                placeholder="Business Name"
-                required
-            >
+            <input name="name" required>
 
             <label>Phone Number</label>
-            <input
-                name="phone"
-                placeholder="Phone Number"
-                required
-            >
+            <input name="phone" required>
 
             <label>Email</label>
-            <input
-                name="email"
-                type="email"
-                placeholder="Email"
-                required
-            >
+            <input name="email">
 
-            <label>Business Address</label>
-            <input
-                name="address"
-                placeholder="Business Address"
-                required
-            >
-
-            <label>Category</label>
-
-            <select name="category" required>
-                <option value="">Select Category</option>
-                <option>Phones & Electronics</option>
-                <option>Fashion</option>
-                <option>Beauty</option>
-                <option>Health</option>
-                <option>Home & Living</option>
-                <option>Food</option>
-                <option>Other</option>
-            </select>
-
-            <button type="submit">
-                Register as Vendor
-            </button>
-
+            <button type="submit">Register</button>
         </form>
-
-        <br>
-
-        <a href="/">Back Home</a>
+    </div>
     """
 
-    return page("Become a Vendor", body)
+    return page("Vendor Registration", body)
 
 
 @app.route("/vendor/product", methods=["GET", "POST"])
@@ -555,42 +416,26 @@ def vendor_product():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
-    cur.execute("""
-        SELECT * FROM vendors
-        ORDER BY business_name
-    """)
-
+    cur.execute("SELECT * FROM vendors ORDER BY id DESC")
     vendors = cur.fetchall()
 
-    cur.close()
-    conn.close()
-
     if request.method == "POST":
-        vendor_id = request.form["vendor_id"]
-        product_name = request.form["product_name"]
-        description = request.form["description"]
-        price = int(request.form["price"])
-        commission = float(request.form["commission"])
-
-        conn = get_db()
-        cur = conn.cursor()
+        vendor_id = request.form.get("vendor_id")
+        product_name = request.form.get("product_name", "").strip()
+        description = request.form.get("description", "").strip()
+        price = request.form.get("price")
+        commission = request.form.get("commission", "10")
 
         cur.execute("""
             INSERT INTO products
-            (
-                vendor_id,
-                product_name,
-                description,
-                price,
-                commission_percent
-            )
+            (vendor_id, product_name, description, price, commission_percent)
             VALUES (%s, %s, %s, %s, %s)
         """, (
             vendor_id,
             product_name,
             description,
-            price,
-            commission
+            int(price),
+            float(commission)
         ))
 
         conn.commit()
@@ -600,138 +445,87 @@ def vendor_product():
         return page(
             "Product Added",
             """
-            <h2>Product added successfully!</h2>
-
-            <a href="/vendor/product">
-                Add another product
-            </a>
-
-            <br><br>
-
-            <a href="/">
-                View Marketplace
-            </a>
+            <div class="box">
+                <h1>Product Added Successfully!</h1>
+                <p>The product is now available on JINJA Marketplace.</p>
+                <a class="button" href="/">View Marketplace</a>
+            </div>
             """
         )
 
-    vendor_options = ""
+    options = ""
 
     for vendor in vendors:
-        vendor_options += f"""
-        <option value="{vendor["id"]}">
-            {html.escape(vendor["business_name"])}
-        </option>
-        """
+        vid = vendor["id"]
+        vname = html.escape(vendor["business_name"])
+        options += f'<option value="{vid}">{vname}</option>'
+
+    cur.close()
+    conn.close()
 
     body = f"""
+    <div class="box">
         <h1>Add Product</h1>
 
         <form method="POST">
-
             <label>Supplier</label>
-
             <select name="vendor_id" required>
-                <option value="">
-                    Select Supplier
-                </option>
-
-                {vendor_options}
+                {options}
             </select>
 
             <label>Product Name</label>
-
-            <input
-                name="product_name"
-                placeholder="Product Name"
-                required
-            >
+            <input name="product_name" required>
 
             <label>Description</label>
+            <textarea name="description"></textarea>
 
-            <textarea
-                name="description"
-                placeholder="Product Description"
-            ></textarea>
-
-            <label>Price</label>
-
-            <input
-                name="price"
-                type="number"
-                placeholder="Product Price"
-                required
-            >
+            <label>Price (₦)</label>
+            <input type="number" name="price" required>
 
             <label>JINJA Commission (%)</label>
+            <input type="number" name="commission" value="10" min="0" max="100">
 
-            <input
-                name="commission"
-                type="number"
-                step="0.01"
-                value="10"
-                required
-            >
-
-            <button type="submit">
-                Add Product
-            </button>
-
+            <button type="submit">Add Product</button>
         </form>
-
-        <br>
-
-        <a href="/admin">Admin Panel</a>
-
-        <br><br>
-
-        <a href="/">Marketplace</a>
+    </div>
     """
 
     return page("Add Product", body)
-    @app.route("/admin", methods=["GET", "POST"])
+
+
+@app.route("/admin", methods=["GET", "POST"])
 def admin():
-    if request.method == "POST":
-        order_id = request.form["order_id"]
-        status = request.form["status"]
-
-        conn = get_db()
-        cur = conn.cursor()
-
-        cur.execute("""
-            UPDATE orders
-            SET status = %s
-            WHERE order_id = %s
-        """, (status, order_id))
-
-        conn.commit()
-        cur.close()
-        conn.close()
-
-        return redirect(url_for("admin"))
-
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
+    if request.method == "POST":
+        order_db_id = request.form.get("order_db_id")
+        status = request.form.get("status")
+
+        cur.execute(
+            "UPDATE orders SET status = %s WHERE id = %s",
+            (status, order_db_id)
+        )
+
+        conn.commit()
+
     cur.execute("""
-        SELECT o.*, v.business_name
-        FROM orders o
-        LEFT JOIN vendors v ON o.vendor_id = v.id
-        ORDER BY o.id DESC
+        SELECT orders.*, vendors.business_name
+        FROM orders
+        LEFT JOIN vendors ON orders.vendor_id = vendors.id
+        ORDER BY orders.id DESC
     """)
     orders = cur.fetchall()
 
     cur.execute("""
-        SELECT p.*, v.business_name
-        FROM products p
-        LEFT JOIN vendors v ON p.vendor_id = v.id
-        ORDER BY p.id DESC
+        SELECT products.*, vendors.business_name
+        FROM products
+        LEFT JOIN vendors ON products.vendor_id = vendors.id
+        ORDER BY products.id DESC
     """)
     products = cur.fetchall()
 
-    cur.execute("""
-        SELECT * FROM vendors
-        ORDER BY id DESC
-    """)
+    cur.execute("SELECT * FROM vendors ORDER BY id DESC")
     vendors = cur.fetchall()
 
     cur.close()
@@ -740,67 +534,31 @@ def admin():
     order_html = ""
 
     for order in orders:
+        oid = order["id"]
+        order_id = html.escape(order["order_id"])
+        customer = html.escape(order["customer"])
+        product = html.escape(order["product"])
+        status = html.escape(order["status"])
+
         order_html += f"""
         <div class="box">
-            <h3>{html.escape(order["order_id"])}</h3>
-
-            <p>
-                <b>Product:</b>
-                {html.escape(order["product"])}
-            </p>
-
-            <p>
-                <b>Customer:</b>
-                {html.escape(order["customer"])}
-            </p>
-
-            <p>
-                <b>Phone:</b>
-                {html.escape(order["phone"])}
-            </p>
-
-            <p>
-                <b>Address:</b>
-                {html.escape(order["address"])}
-            </p>
-
-            <p>
-                <b>Amount:</b>
-                ₦{int(order["amount"]):,}
-            </p>
-
-            <p>
-                <b>Supplier:</b>
-                {html.escape(order["business_name"] or "Not assigned")}
-            </p>
-
-            <p>
-                <b>JINJA Commission:</b>
-                ₦{float(order["commission_amount"] or 0):,.2f}
-            </p>
-
-            <p>
-                <b>Status:</b>
-                {html.escape(order["status"])}
-            </p>
+            <h3>{order_id}</h3>
+            <p><b>Product:</b> {product}</p>
+            <p><b>Customer:</b> {customer}</p>
+            <p><b>Amount:</b> ₦{order["amount"]:,}</p>
+            <p><b>Supplier:</b> {html.escape(order["business_name"] or "None")}</p>
+            <p><b>Commission:</b> ₦{float(order["commission_amount"] or 0):,.2f}</p>
+            <p><b>Status:</b> {status}</p>
 
             <form method="POST">
-                <input
-                    type="hidden"
-                    name="order_id"
-                    value="{html.escape(order["order_id"])}"
-                >
-
+                <input type="hidden" name="order_db_id" value="{oid}">
                 <select name="status">
                     <option>Pending</option>
                     <option>Confirmed</option>
                     <option>Shipped</option>
                     <option>Delivered</option>
                 </select>
-
-                <button type="submit">
-                    Update Status
-                </button>
+                <button type="submit">Update Status</button>
             </form>
         </div>
         """
@@ -811,21 +569,9 @@ def admin():
         product_html += f"""
         <div class="box">
             <h3>{html.escape(product["product_name"])}</h3>
-
-            <p>
-                Price:
-                ₦{int(product["price"]):,}
-            </p>
-
-            <p>
-                Supplier:
-                {html.escape(product["business_name"] or "Not assigned")}
-            </p>
-
-            <p>
-                Commission:
-                {float(product["commission_percent"] or 0):.2f}%
-            </p>
+            <p>₦{product["price"]:,}</p>
+            <p>Commission: {product["commission_percent"]}%</p>
+            <p>Supplier: {html.escape(product["business_name"] or "None")}</p>
         </div>
         """
 
@@ -835,63 +581,25 @@ def admin():
         vendor_html += f"""
         <div class="box">
             <h3>{html.escape(vendor["business_name"])}</h3>
-
-            <p>
-                Vendor:
-                {html.escape(vendor["vendor_name"])}
-            </p>
-
-            <p>
-                Phone:
-                {html.escape(vendor["phone"])}
-            </p>
-
-            <p>
-                Email:
-                {html.escape(vendor["email"])}
-            </p>
-
-            <p>
-                Category:
-                {html.escape(vendor["category"])}
-            </p>
+            <p>{html.escape(vendor["name"])}</p>
+            <p>{html.escape(vendor["phone"])}</p>
         </div>
         """
 
-    body = f"""
-        <h1>JINJA Admin Panel</h1>
+    body = """
+    <h1>JINJA Admin Panel</h1>
 
-        <p>
-            <a href="/vendor/product">
-                Add Supplier Product
-            </a>
-        </p>
+    <h2>Orders</h2>
+    """ + (order_html or "<p>No orders yet.</p>") + """
 
-        <hr>
+    <h2>Products</h2>
+    """ + (product_html or "<p>No products yet.</p>") + """
 
-        <h2>Orders</h2>
-        {order_html or "<p>No orders yet.</p>"}
+    <h2>Vendors</h2>
+    """ + (vendor_html or "<p>No vendors yet.</p>")
 
-        <hr>
-
-        <h2>Products</h2>
-        {product_html or "<p>No products yet.</p>"}
-
-        <hr>
-
-        <h2>Registered Suppliers</h2>
-        {vendor_html or "<p>No suppliers yet.</p>"}
-
-        <br>
-
-        <a href="/">Back Home</a>
-    """
-
-    return page("JINJA Admin", body)
+    return page("JINJA Admin Panel", body)
 
 
 if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 5000))
-        )
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
