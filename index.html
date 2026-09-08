@@ -261,18 +261,85 @@ function openCheckout(){
  if(!cart.length){alert("Your cart is empty.");return}
  closeModal("cartModal");document.getElementById("checkoutModal").classList.add("show")
 }
-function placeDemoOrder(e){
- e.preventDefault();
- let orderId="JIN-"+Date.now().toString().slice(-7);
- let order={id:orderId,name:document.getElementById("customerName").value,phone:document.getElementById("customerPhone").value,address:document.getElementById("customerAddress").value,state:document.getElementById("customerState").value,payment:document.getElementById("payment").value,items:cart.map(x=>({...x})),status:"Order placed",created:new Date().toISOString()};
- lastOrder=order;localStorage.setItem("jinjaLastOrder",JSON.stringify(order));
- cart=[];save();closeModal("checkoutModal");
- document.getElementById("accountText").textContent="Latest order: "+orderId+" · "+order.status;
- alert("Order created: "+orderId+"\\n\\nThis is the marketplace structure/demo stage. Database, vendor alerts and real notifications will be connected next.");
- openTracker();
- document.getElementById("trackInput").value=orderId;
- trackOrder();
-}
+async function placeDemoOrder(e){
+  e.preventDefault();
+
+  if(!cart.length){
+    alert("Your cart is empty.");
+    return;
+  }
+
+  const orderData = {
+    name: document.getElementById("customerName").value,
+    phone: document.getElementById("customerPhone").value,
+    address: document.getElementById("customerAddress").value,
+    state: document.getElementById("customerState").value,
+    payment: document.getElementById("payment").value,
+    items: cart.map(x => ({
+      id: x.id,
+      qty: x.qty
+    }))
+  };
+
+  try {
+
+    const response = await fetch("/api/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(orderData)
+    });
+
+    const result = await response.json();
+
+    if(!result.success){
+      alert(result.message || "Unable to create order.");
+      return;
+    }
+
+    const order = result.order;
+
+    lastOrder = order;
+
+    localStorage.setItem(
+      "jinjaLastOrder",
+      JSON.stringify(order)
+    );
+
+    cart = [];
+    save();
+
+    closeModal("checkoutModal");
+
+    document.getElementById("accountText").textContent =
+      "Latest order: " +
+      order.order_id +
+      " · " +
+      order.status;
+
+    alert(
+      "Order created successfully!\\n\\n" +
+      "Order number: " +
+      order.order_id
+    );
+
+    openTracker();
+
+    document.getElementById("trackInput").value =
+      order.order_id;
+
+    trackOrder();
+
+  } catch(error) {
+
+    console.error(error);
+
+    alert(
+      "Unable to connect to Jinja. Please try again."
+    );
+  }
+  }
 function openTracker(){document.querySelectorAll(".modal").forEach(x=>x.classList.remove("show"));document.getElementById("trackerModal").classList.add("show")}
 function trackOrder(){
  let id=document.getElementById("trackInput").value.trim();
