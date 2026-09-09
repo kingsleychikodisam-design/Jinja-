@@ -356,18 +356,18 @@ def vendor_register():
         conn = get_db()
         cur = conn.cursor()
 
-        cur.execute("""
+cur.execute("""
     INSERT INTO vendors
-    (business_name, vendor_name, name, phone, email)
-    VALUES (%s, %s, %s, %s, %s)
+    (business_name, vendor_name, name, phone, email, address)
+    VALUES (%s, %s, %s, %s, %s, %s)
 """, (
     business_name,
     business_name,
     name,
     phone,
-    email
+    email,
+    ""
 ))
-
         conn.commit()
         cur.close()
         conn.close()
