@@ -368,20 +368,21 @@ cur.execute("""
     email,
     ""
 ))
-        conn.commit()
-        cur.close()
-        conn.close()
 
-        return layout(
-            "Vendor Registered",
-            """
-            <div class="box">
-                <h1>Vendor Registration Successful!</h1>
-                <p>Your supplier has been registered.</p>
-                <a class="button" href="/vendor/product">Add Product</a>
-            </div>
-            """
-        )
+conn.commit()
+cur.close()
+conn.close()
+
+return layout(
+    "Vendor Registered",
+    """
+    <div class="box">
+        <h1>Vendor Registration Successful!</h1>
+        <p>Your supplier has been registered.</p>
+        <a class="button" href="/vendor/product">Add Product</a>
+    </div>
+    """
+)
 
     content = """
     <div class="box">
