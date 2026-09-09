@@ -27,7 +27,10 @@ def init_db():
             business TEXT
         )
     """)
-
+    cur.execute("""
+        ALTER TABLE vendors
+        ADD COLUMN IF NOT EXISTS business TEXT
+    """)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS products (
             id SERIAL PRIMARY KEY,
