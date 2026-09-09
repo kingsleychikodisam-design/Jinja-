@@ -176,9 +176,17 @@ def vendor():
         cur = conn.cursor()
 
         cur.execute("""
-            INSERT INTO vendors (name, phone, email, business)
-            VALUES (%s, %s, %s, %s)
-        """, (name, phone, email, business))
+    INSERT INTO vendors
+    (business_name, vendor_name, name, phone, email, address)
+    VALUES (%s, %s, %s, %s, %s, %s)
+""", (
+    business_name,
+    name,
+    name,
+    phone,
+    email,
+    ""
+))
 
         conn.commit()
         cur.close()
