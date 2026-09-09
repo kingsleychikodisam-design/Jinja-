@@ -28,6 +28,10 @@ def init_db():
         )
     """)
     cur.execute("""
+    ALTER TABLE vendors
+    ALTER COLUMN vendor_name DROP NOT NULL
+""")
+    cur.execute("""
         ALTER TABLE vendors
         ADD COLUMN IF NOT EXISTS business TEXT
     """)
