@@ -1,5 +1,16 @@
-from flask import Flask, request, redirect, url_for, render_template_string
+Yes. Now that you have given me the entire app.py, I can give you the complete replacement. You were right to insist on this.
+I found the actual problem:
+Your init_db() has incorrect indentation around the ALTER TABLE statements.
+Your existing database has a vendor_name column that can still require a value.
+Your registration code inserts only business_name, name, phone, email, so vendor_name can become NULL.
+The replacement below repairs old vendor records and explicitly supplies vendor_name when registering a new vendor.
+I also made the database setup work with both your existing database and a fresh database.
+Replace the ENTIRE contents of app.py
+Do not edit individual sections. Delete everything currently inside app.py, then paste this entire code:
+from flask import Flask, request
 import os
+import random
+import html
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -14,36 +25,118 @@ def get_db():
     return psycopg2.connect(DATABASE_URL)
 
 
+# ============================================================
+# DATABASE SETUP
+# ============================================================
+
 def init_db():
     conn = get_db()
     cur = conn.cursor()
 
+    # --------------------------------------------------------
+    # VENDORS
+    # --------------------------------------------------------
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS vendors (
             id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            phone TEXT NOT NULL,
-            email TEXT,
-            business TEXT
+            business_name TEXT NOT NULL DEFAULT '',
+            vendor_name TEXT NOT NULL DEFAULT '',
+            name TEXT NOT NULL DEFAULT '',
+            phone TEXT NOT NULL DEFAULT '',
+            email TEXT DEFAULT '',
+            address TEXT DEFAULT ''
         )
     """)
-    cur.execute("""
-    ALTER TABLE vendors
-    ALTER COLUMN vendor_name DROP NOT NULL
-""")
+
+    # Make sure older JINJA databases have these columns.
     cur.execute("""
         ALTER TABLE vendors
-        ADD COLUMN IF NOT EXISTS business TEXT
+        ADD COLUMN IF NOT EXISTS business_name TEXT DEFAULT ''
     """)
+
+    cur.execute("""
+        ALTER TABLE vendors
+        ADD COLUMN IF NOT EXISTS vendor_name TEXT DEFAULT ''
+    """)
+
+    cur.execute("""
+        ALTER TABLE vendors
+        ADD COLUMN IF NOT EXISTS name TEXT DEFAULT ''
+    """)
+
+    cur.execute("""
+        ALTER TABLE vendors
+        ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT ''
+    """)
+
+    cur.execute("""
+        ALTER TABLE vendors
+        ADD COLUMN IF NOT EXISTS email TEXT DEFAULT ''
+    """)
+
+    cur.execute("""
+        ALTER TABLE vendors
+        ADD COLUMN IF NOT EXISTS address TEXT DEFAULT ''
+    """)
+
+    # --------------------------------------------------------
+    # REPAIR OLD VENDOR RECORDS
+    # --------------------------------------------------------
+
+    cur.execute("""
+        UPDATE vendors
+        SET vendor_name = COALESCE(
+            NULLIF(TRIM(vendor_name), ''),
+            NULLIF(TRIM(name), ''),
+            NULLIF(TRIM(business_name), ''),
+            'Vendor'
+        )
+        WHERE vendor_name IS NULL
+           OR TRIM(vendor_name) = ''
+    """)
+
+    cur.execute("""
+        UPDATE vendors
+        SET business_name = COALESCE(
+            NULLIF(TRIM(business_name), ''),
+            NULLIF(TRIM(vendor_name), ''),
+            NULLIF(TRIM(name), ''),
+            'JINJA Vendor'
+        )
+        WHERE business_name IS NULL
+           OR TRIM(business_name) = ''
+    """)
+
+    cur.execute("""
+        ALTER TABLE vendors
+        ALTER COLUMN vendor_name SET DEFAULT ''
+    """)
+
+    cur.execute("""
+        ALTER TABLE vendors
+        ALTER COLUMN vendor_name SET NOT NULL
+    """)
+
+    # --------------------------------------------------------
+    # PRODUCTS
+    # --------------------------------------------------------
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS products (
             id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            price NUMERIC NOT NULL,
-            vendor TEXT,
-            description TEXT
+            vendor_id INTEGER REFERENCES vendors(id),
+            product_name TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            price INTEGER NOT NULL,
+            commission_percent NUMERIC DEFAULT 10,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    # --------------------------------------------------------
+    # ORDERS
+    # --------------------------------------------------------
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS orders (
@@ -53,566 +146,805 @@ def init_db():
             customer TEXT NOT NULL,
             phone TEXT NOT NULL,
             address TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'Order received'
+            amount INTEGER NOT NULL,
+            status TEXT DEFAULT 'Pending',
+            vendor_id INTEGER REFERENCES vendors(id),
+            commission_amount NUMERIC DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
+    # Make sure older order tables have these columns.
+    cur.execute("""
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS vendor_id INTEGER
+    """)
+
+    cur.execute("""
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS commission_amount NUMERIC DEFAULT 0
+    """)
+
+    cur.execute("""
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS created_at
+        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    """)
+
     conn.commit()
+
     cur.close()
     conn.close()
 
 
-@app.route("/")
-def home():
-    return render_template_string("""
+# Initialize database when application starts.
+try:
+    init_db()
+    print("JINJA database initialized successfully.")
+except Exception as e:
+    print("Database initialization error:", e)
+
+
+# ============================================================
+# GENERAL PAGE DESIGN
+# ============================================================
+
+def page(title, body):
+
+    return """
     <!DOCTYPE html>
     <html>
     <head>
-        <title>JINJA Marketplace</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <title>""" + html.escape(title) + """ - JINJA</title>
+
+        <meta name="viewport"
+              content="width=device-width, initial-scale=1">
+
         <style>
-            body {
-                font-family: Arial, sans-serif;
-                margin: 0;
-                background: #f5f5f5;
-                color: #222;
+
+            * {
+                box-sizing: border-box;
             }
 
-            header {
-                background: #111;
-                color: white;
+            body {
+                font-family: Arial, sans-serif;
+                background: #f4f4f4;
+                margin: 0;
                 padding: 20px;
-                text-align: center;
+                color: #222;
             }
 
             .container {
                 max-width: 900px;
-                margin: 30px auto;
-                padding: 20px;
+                margin: auto;
             }
 
-            .card {
+            .nav {
                 background: white;
-                padding: 25px;
+                padding: 15px;
+                border-radius: 10px;
                 margin-bottom: 20px;
-                border-radius: 12px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                line-height: 2;
+                box-shadow: 0 2px 8px #ddd;
             }
 
-            a, button {
-                display: inline-block;
-                padding: 12px 18px;
-                margin: 5px;
-                border: none;
-                border-radius: 8px;
-                background: #111;
-                color: white;
-                text-decoration: none;
-                cursor: pointer;
-            }
-
-            input {
-                width: 100%;
-                padding: 12px;
-                margin: 8px 0 15px;
-                box-sizing: border-box;
-                border: 1px solid #ccc;
-                border-radius: 8px;
-            }
-        </style>
-    </head>
-
-    <body>
-        <header>
-            <h1>JINJA Marketplace</h1>
-            <p>Buy. Sell. Track your order.</p>
-        </header>
-
-        <div class="container">
-
-            <div class="card">
-                <h2>Track Your Order</h2>
-
-                <form action="/track" method="get">
-                    <input
-                        type="text"
-                        name="order_id"
-                        placeholder="Enter Order ID"
-                        required
-                    >
-
-                    <button type="submit">Track Order</button>
-                </form>
-            </div>
-
-            <div class="card">
-                <h2>Become a Vendor</h2>
-                <p>Register your business and start selling on JINJA.</p>
-                <a href="/vendor">Vendor Registration</a>
-            </div>
-
-            <div class="card">
-                <h2>Admin</h2>
-                <a href="/admin">Admin Panel</a>
-            </div>
-
-        </div>
-    </body>
-    </html>
-    """)
-
-
-@app.route("/vendor", methods=["GET", "POST"])
-def vendor():
-    message = ""
-
-    if request.method == "POST":
-        name = request.form.get("name")
-        phone = request.form.get("phone")
-        email = request.form.get("email")
-        business = request.form.get("business")
-
-        conn = get_db()
-        cur = conn.cursor()
-
-        cur.execute("""
-    INSERT INTO vendors
-    (business_name, vendor_name, name, phone, email, address)
-    VALUES (%s, %s, %s, %s, %s, %s)
-""", (
-    business_name,
-    name,
-    name,
-    phone,
-    email,
-    ""
-))
-
-        conn.commit()
-        cur.close()
-        conn.close()
-
-        message = "Vendor registration successful!"
-
-    return render_template_string("""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Vendor Registration - JINJA</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-
-        <style>
-            body {
-                font-family: Arial;
-                background: #f5f5f5;
-                padding: 20px;
+            .nav a {
+                margin-right: 7px;
             }
 
             .box {
-                max-width: 600px;
-                margin: 30px auto;
                 background: white;
-                padding: 25px;
-                border-radius: 12px;
+                padding: 20px;
+                margin: 15px 0;
+                border-radius: 10px;
+                box-shadow: 0 2px 8px #ddd;
             }
 
-            input {
+            input,
+            textarea,
+            select {
                 width: 100%;
                 padding: 12px;
                 margin: 8px 0 15px;
-                box-sizing: border-box;
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                font-size: 16px;
             }
 
-            button, a {
+            textarea {
+                min-height: 100px;
+            }
+
+            button,
+            .button {
                 background: #111;
                 color: white;
                 padding: 12px 18px;
                 border: none;
+                border-radius: 6px;
                 text-decoration: none;
-                border-radius: 8px;
+                display: inline-block;
+                cursor: pointer;
+                font-size: 15px;
+            }
+
+            button:hover,
+            .button:hover {
+                opacity: 0.85;
+            }
+
+            .price {
+                font-size: 21px;
+                font-weight: bold;
             }
 
             .success {
                 color: green;
                 font-weight: bold;
             }
-        </style>
-    </head>
 
-    <body>
-
-        <div class="box">
-
-            <h1>Become a Vendor</h1>
-
-            {% if message %}
-                <p class="success">{{ message }}</p>
-            {% endif %}
-
-            <form method="post">
-
-                <label>Name</label>
-                <input type="text" name="name" required>
-
-                <label>Phone</label>
-                <input type="text" name="phone" required>
-
-                <label>Email</label>
-                <input type="email" name="email">
-
-                <label>Business Name</label>
-                <input type="text" name="business">
-
-                <button type="submit">
-                    Register
-                </button>
-
-            </form>
-
-            <br><br>
-
-            <a href="/">Back to Marketplace</a>
-
-        </div>
-
-    </body>
-    </html>
-    """, message=message)
-
-
-@app.route("/track")
-def track():
-    order_id = request.args.get("order_id")
-
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    cur.execute("""
-        SELECT *
-        FROM orders
-        WHERE order_id = %s
-    """, (order_id,))
-
-    order = cur.fetchone()
-
-    cur.close()
-    conn.close()
-
-    return render_template_string("""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Track Order - JINJA</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-
-        <style>
-            body {
-                font-family: Arial;
-                background: #f5f5f5;
-                padding: 20px;
-            }
-
-            .box {
-                max-width: 650px;
-                margin: 30px auto;
-                background: white;
-                padding: 25px;
-                border-radius: 12px;
-            }
-
-            .status {
-                font-size: 22px;
+            .error {
+                color: #b00020;
                 font-weight: bold;
             }
 
-            a {
-                display: inline-block;
-                margin-top: 20px;
-                padding: 12px 18px;
-                background: #111;
-                color: white;
-                text-decoration: none;
-                border-radius: 8px;
+            .status {
+                font-size: 20px;
+                font-weight: bold;
             }
+
         </style>
-    </head>
 
-    <body>
-
-        <div class="box">
-
-            <h1>Track Your Order</h1>
-
-            {% if order %}
-
-                <h2>Order: {{ order.order_id }}</h2>
-
-                <p>
-                    <strong>Product:</strong>
-                    {{ order.product }}
-                </p>
-
-                <p>
-                    <strong>Customer:</strong>
-                    {{ order.customer }}
-                </p>
-
-                <p>
-                    <strong>Phone:</strong>
-                    {{ order.phone }}
-                </p>
-
-                <p>
-                    <strong>Address:</strong>
-                    {{ order.address }}
-                </p>
-
-                <p class="status">
-                    Status: {{ order.status }}
-                </p>
-
-            {% else %}
-
-                <p>
-                    ❌ Order not found.
-                </p>
-
-                <p>
-                    Please check your Order ID and try again.
-                </p>
-
-            {% endif %}
-
-            <a href="/">Back to Marketplace</a>
-
-        </div>
-
-    </body>
-    </html>
-    """, order=order)
-
-
-@app.route("/admin")
-def admin():
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    cur.execute("""
-        SELECT *
-        FROM vendors
-        ORDER BY id DESC
-    """)
-    vendors = cur.fetchall()
-
-    cur.execute("""
-        SELECT *
-        FROM products
-        ORDER BY id DESC
-    """)
-    products = cur.fetchall()
-
-    cur.execute("""
-        SELECT *
-        FROM orders
-        ORDER BY id DESC
-    """)
-    orders = cur.fetchall()
-
-    cur.close()
-    conn.close()
-
-    return render_template_string("""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Admin Panel - JINJA</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-
-        <style>
-            body {
-                font-family: Arial;
-                background: #f5f5f5;
-                padding: 20px;
-            }
-
-            .container {
-                max-width: 1000px;
-                margin: auto;
-            }
-
-            .card {
-                background: white;
-                padding: 20px;
-                margin-bottom: 20px;
-                border-radius: 12px;
-                overflow-x: auto;
-            }
-
-            table {
-                width: 100%;
-                border-collapse: collapse;
-            }
-
-            th, td {
-                padding: 10px;
-                border-bottom: 1px solid #ddd;
-                text-align: left;
-            }
-
-            th {
-                background: #eee;
-            }
-
-            a {
-                display: inline-block;
-                background: #111;
-                color: white;
-                padding: 12px 18px;
-                text-decoration: none;
-                border-radius: 8px;
-            }
-        </style>
     </head>
 
     <body>
 
         <div class="container">
 
-            <h1>JINJA Admin Panel</h1>
+            <div class="nav">
 
-            <div class="card">
+                <a href="/">Home</a> |
 
-                <h2>Vendors</h2>
+                <a href="/track">Track Order</a> |
 
-                {% if vendors %}
+                <a href="/vendor/register">
+                    Become a Vendor
+                </a> |
 
-                <table>
+                <a href="/vendor/product">
+                    Add Product
+                </a> |
 
-                    <tr>
-                        <th>Name</th>
-                        <th>Phone</th>
-                        <th>Email</th>
-                        <th>Business</th>
-                    </tr>
-
-                    {% for vendor in vendors %}
-
-                    <tr>
-                        <td>{{ vendor.name }}</td>
-                        <td>{{ vendor.phone }}</td>
-                        <td>{{ vendor.email }}</td>
-                        <td>{{ vendor.business }}</td>
-                    </tr>
-
-                    {% endfor %}
-
-                </table>
-
-                {% else %}
-
-                <p>No vendors registered yet.</p>
-
-                {% endif %}
+                <a href="/admin">
+                    Admin Panel
+                </a>
 
             </div>
 
-
-            <div class="card">
-
-                <h2>Products</h2>
-
-                {% if products %}
-
-                <table>
-
-                    <tr>
-                        <th>Name</th>
-                        <th>Price</th>
-                        <th>Vendor</th>
-                        <th>Description</th>
-                    </tr>
-
-                    {% for product in products %}
-
-                    <tr>
-                        <td>{{ product.name }}</td>
-                        <td>{{ product.price }}</td>
-                        <td>{{ product.vendor }}</td>
-                        <td>{{ product.description }}</td>
-                    </tr>
-
-                    {% endfor %}
-
-                </table>
-
-                {% else %}
-
-                <p>No products yet.</p>
-
-                {% endif %}
-
-            </div>
-
-
-            <div class="card">
-
-                <h2>Orders</h2>
-
-                {% if orders %}
-
-                <table>
-
-                    <tr>
-                        <th>Order ID</th>
-                        <th>Product</th>
-                        <th>Customer</th>
-                        <th>Phone</th>
-                        <th>Address</th>
-                        <th>Status</th>
-                    </tr>
-
-                    {% for order in orders %}
-
-                    <tr>
-                        <td>{{ order.order_id }}</td>
-                        <td>{{ order.product }}</td>
-                        <td>{{ order.customer }}</td>
-                        <td>{{ order.phone }}</td>
-                        <td>{{ order.address }}</td>
-                        <td>{{ order.status }}</td>
-                    </tr>
-
-                    {% endfor %}
-
-                </table>
-
-                {% else %}
-
-                <p>No orders yet.</p>
-
-                {% endif %}
-
-            </div>
-
-            <a href="/">Back to Marketplace</a>
+            """ + body + """
 
         </div>
 
     </body>
     </html>
+    """
+
+
+# ============================================================
+# HOME / MARKETPLACE
+# ============================================================
+
+@app.route("/")
+def home():
+
+    conn = get_db()
+
+    cur = conn.cursor(
+        cursor_factory=RealDictCursor
+    )
+
+    cur.execute("""
+        SELECT
+            products.*,
+            vendors.business_name
+        FROM products
+        LEFT JOIN vendors
+            ON products.vendor_id = vendors.id
+        ORDER BY products.id DESC
     """)
 
+    products = cur.fetchall()
 
-@app.route("/health")
-def health():
-    return "JINJA is running successfully!"
+    cur.close()
+    conn.close()
+
+    items = ""
+
+    if not products:
+
+        items = """
+        <div class="box">
+
+            <h3>No products yet</h3>
+
+            <p>
+                Vendors can register and add products.
+            </p>
+
+            <a class="button"
+               href="/vendor/register">
+                Become a Vendor
+            </a>
+
+        </div>
+        """
+
+    for product in products:
+
+        product_id = product["id"]
+
+        name = html.escape(
+            product["product_name"]
+        )
+
+        description = html.escape(
+            product["description"] or ""
+        )
+
+        price = int(
+            product["price"] or 0
+        )
+
+        vendor = html.escape(
+            product["business_name"]
+            or "JINJA"
+        )
+
+        items += f"""
+        <div class="box">
+
+            <h2>{name}</h2>
+
+            <p>
+                {description}
+            </p>
+
+            <p class="price">
+                ₦{price:,}
+            </p>
+
+            <p>
+                <b>Supplier:</b>
+                {vendor}
+            </p>
+
+            <a class="button"
+               href="/order/{product_id}">
+                Order Now
+            </a>
+
+        </div>
+        """
+
+    body = """
+
+    <div class="box">
+
+        <h1>JINJA Marketplace</h1>
+
+        <p>
+            Buy products from trusted suppliers.
+        </p>
+
+        <a class="button"
+           href="/vendor/register">
+            Become a Vendor
+        </a>
+
+    </div>
+
+    <div class="box">
+
+        <h2>Track Your Order</h2>
+
+        <a class="button"
+           href="/track">
+            Track Order
+        </a>
+
+    </div>
+
+    """ + items
+
+    return page(
+        "JINJA Marketplace",
+        body
+    )
 
 
-try:
-    init_db()
-except Exception as e:
-    print("Database initialization error:", e)
+# ============================================================
+# PLACE ORDER
+# ============================================================
+
+@app.route(
+    "/order/<int:product_id>",
+    methods=["GET", "POST"]
+)
+def place_order(product_id):
+
+    conn = get_db()
+
+    cur = conn.cursor(
+        cursor_factory=RealDictCursor
+    )
+
+    cur.execute(
+        """
+        SELECT *
+        FROM products
+        WHERE id = %s
+        """,
+        (product_id,)
+    )
+
+    product = cur.fetchone()
+
+    if not product:
+
+        cur.close()
+        conn.close()
+
+        return page(
+            "Product Not Found",
+            """
+            <div class="box">
+
+                <h2>
+                    Product not found.
+                </h2>
+
+                <a class="button"
+                   href="/">
+                    Back to Marketplace
+                </a>
+
+            </div>
+            """
+        )
+
+    # --------------------------------------------------------
+    # CREATE ORDER
+    # --------------------------------------------------------
+
+    if request.method == "POST":
+
+        customer = request.form.get(
+            "customer",
+            ""
+        ).strip()
+
+        phone = request.form.get(
+            "phone",
+            ""
+        ).strip()
+
+        address = request.form.get(
+            "address",
+            ""
+        ).strip()
+
+        if not customer or not phone or not address:
+
+            cur.close()
+            conn.close()
+
+            return page(
+                "Order Error",
+                f"""
+                <div class="box">
+
+                    <h2 class="error">
+                        Please fill in all fields.
+                    </h2>
+
+                    <a class="button"
+                       href="/order/{product_id}">
+                        Go Back
+                    </a>
+
+                </div>
+                """
+            )
+
+        amount = int(
+            product["price"]
+        )
+
+        commission_percent = float(
+            product["commission_percent"] or 0
+        )
+
+        commission = (
+            amount *
+            commission_percent /
+            100
+        )
+
+        order_id = (
+            "JINJA-" +
+            str(
+                random.randint(
+                    1000000,
+                    9999999
+                )
+            )
+        )
+
+        # Prevent accidental duplicate order ID.
+        while True:
+
+            cur.execute(
+                """
+                SELECT id
+                FROM orders
+                WHERE order_id = %s
+                """,
+                (order_id,)
+            )
+
+            existing = cur.fetchone()
+
+            if not existing:
+                break
+
+            order_id = (
+                "JINJA-" +
+                str(
+                    random.randint(
+                        1000000,
+                        9999999
+                    )
+                )
+            )
+
+        cur.execute(
+            """
+            INSERT INTO orders
+            (
+                order_id,
+                product,
+                customer,
+                phone,
+                address,
+                amount,
+                status,
+                vendor_id,
+                commission_amount
+            )
+
+            VALUES
+            (
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s
+            )
+            """,
+            (
+                order_id,
+                product["product_name"],
+                customer,
+                phone,
+                address,
+                amount,
+                "Pending",
+                product["vendor_id"],
+                commission
+            )
+        )
+
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        body = f"""
+
+        <div class="box">
+
+            <h1>
+                Order Received!
+            </h1>
+
+            <p class="success">
+                Your order has been created successfully.
+            </p>
+
+            <h2>
+                Order ID:
+                {html.escape(order_id)}
+            </h2>
+
+            <p>
+                Keep this Order ID to track your order.
+            </p>
+
+            <a class="button"
+               href="/track">
+                Track Order
+            </a>
+
+        </div>
+
+        """
+
+        return page(
+            "Order Received",
+            body
+        )
+
+    # --------------------------------------------------------
+    # ORDER FORM
+    # --------------------------------------------------------
+
+    name = html.escape(
+        product["product_name"]
+    )
+
+    price = int(
+        product["price"]
+    )
+
+    body = f"""
+
+    <div class="box">
+
+        <h1>
+            Order {name}
+        </h1>
+
+        <h2>
+            ₦{price:,}
+        </h2>
+
+        <form method="POST">
+
+            <label>
+                Your Name
+            </label>
+
+            <input
+                name="customer"
+                required
+            >
+
+            <label>
+                Phone Number
+            </label>
+
+            <input
+                name="phone"
+                required
+            >
+
+            <label>
+                Delivery Address
+            </label>
+
+            <textarea
+                name="address"
+                required
+            ></textarea>
+
+            <button type="submit">
+                Place Order
+            </button>
+
+        </form>
+
+    </div>
+
+    """
+
+    cur.close()
+    conn.close()
+
+    return page(
+        "Place Order",
+        body
+    )
 
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+# ============================================================
+# TRACK ORDER
+# ============================================================
+
+@app.route(
+    "/track",
+    methods=["GET", "POST"]
+)
+def track():
+
+    order = None
+    searched = False
+
+    if request.method == "POST":
+
+        searched = True
+
+        order_id = request.form.get(
+            "order_id",
+            ""
+        ).strip()
+
+        conn = get_db()
+
+        cur = conn.cursor(
+            cursor_factory=RealDictCursor
+        )
+
+        cur.execute(
+            """
+            SELECT *
+            FROM orders
+            WHERE order_id = %s
+            """,
+            (order_id,)
+        )
+
+        order = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+    body = """
+
+    <div class="box">
+
+        <h1>
+            Track Your Order
+        </h1>
+
+        <form method="POST">
+
+            <label>
+                Enter Order ID
+            </label>
+
+            <input
+                name="order_id"
+                placeholder="Example: JINJA-1234567"
+                required
+            >
+
+            <button type="submit">
+                Track Order
+            </button>
+
+        </form>
+
+    </div>
+
+    """
+
+    if searched:
+
+        if order:
+
+            body += f"""
+
+            <div class="box">
+
+                <h2>
+                    Order Found
+                </h2>
+
+                <p>
+                    <b>Order ID:</b>
+                    {html.escape(order["order_id"])}
+                </p>
+
+                <p>
+                    <b>Product:</b>
+                    {html.escape(order["product"])}
+                </p>
+
+                <p>
+                    <b>Customer:</b>
+                    {html.escape(order["customer"])}
+                </p>
+
+                <p>
+                    <b>Phone:</b>
+                    {html.escape(order["phone"])}
+                </p>
+
+                <p class="status">
+                    Status:
+                    {html.escape(order["status"])}
+                </p>
+
+            </div>
+
+            """
+
+        else:
+
+            body += """
+
+            <div class="box">
+
+                <h3 class="error">
+                    Order not found.
+                </h3>
+
+                <p>
+                    Please check your Order ID
+                    and try again.
+                </p>
+
+            </div>
+
+            """
+
+    return page(
+        "Track Order",
+        body
+    )
+
+
+# ============================================================
+# VENDOR REGISTRATION
+# ============================================================
+
+@app.route(
+    "/vendor/register",
+    methods=["GET", "POST"]
+)
+def vendor_register():
+
+    error_message = ""
+
+    if request.method == "POST":
+
+        business_name = request.form.get(
+            "business_name",
+            ""
+        ).strip()
+
+        name = request.form.get(
+            "name",
+            ""
+        ).strip()
+
+        phone = request.form.get(
+            "phone",
+            ""
+        ).strip()
+
+        email = request.form.get(
+            "email",
+            ""
+        ).strip()
+
+        if (
+            not business_name
+            or not name
+            or not phone
+        ):
+
+            error_message = (
+                "Business name, name and "
+                "phone number are required."
+            )
+
+        else:
+
+            conn = None
+           
