@@ -19,17 +19,15 @@ def get_db():
 def init_db():
     conn = get_db()
     cur = conn.cursor()
-
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS vendors (
-            id SERIAL PRIMARY KEY,
-            business_name TEXT NOT NULL,
-            name TEXT NOT NULL,
-            phone TEXT NOT NULL,
-            email TEXT DEFAULT '',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    ALTER TABLE vendors
+    ADD COLUMN IF NOT EXISTS name TEXT DEFAULT ''
+""")
+
+cur.execute("""
+    ALTER TABLE vendors
+    ADD COLUMN IF NOT EXISTS email TEXT DEFAULT ''
+""")
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS products (
